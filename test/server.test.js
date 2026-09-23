@@ -93,3 +93,26 @@ test('rejects a POST /event with an unknown type', async () => {
   assert.equal(status, 400);
   await close();
 });
+
+test('close() resolves promptly even with an open SSE connection (does not hang)', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  // Open an SSE connection and deliberately leave it open -- never destroy the
+  // response. A graceful server.close() would wait forever for this connection
+  // to end on its own, since SSE responses never end by themselves.
+  await new Promise((resolve, reject) => {
+    const req = http.get({ host: '127.0.0.1', port, path: '/events' }, (res) => {
+      res.on('data', () => {}); // drain, but never destroy/end the connection
+      resolve();
+    });
+    req.on('error', reject);
+  });
+
+  const TIMEOUT = Symbol('timeout');
+  const result = await Promise.race([
+    close().then(() => 'closed'),
+    new Promise((resolve) => setTimeout(() => resolve(TIMEOUT), 500)),
+  ]);
+
+  assert.equal(result, 'closed', 'close() should resolve promptly instead of hanging on the open SSE connection');
+});

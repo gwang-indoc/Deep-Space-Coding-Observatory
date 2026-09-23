@@ -80,7 +80,20 @@ export function createOrbitServer(port) {
       resolve({
         server,
         port: server.address().port,
-        close: () => new Promise((r) => server.close(r)),
+        close: () =>
+          new Promise((r) => {
+            // GET /events responses (SSE) never end on their own, so a graceful
+            // server.close() would wait forever for them. Force-end any open SSE
+            // clients and force-close all sockets so close() always settles.
+            for (const res of clients) {
+              res.end();
+            }
+            clients.clear();
+            server.close(r);
+            if (typeof server.closeAllConnections === 'function') {
+              server.closeAllConnections();
+            }
+          }),
       });
     });
   });
