@@ -1,35 +1,108 @@
-# Deep-Space-Coding-Observatory (Orbit)
+<div align="center">
 
-Orbit wraps `claude` and exposes its activity as a local event stream for a
-future browser-based visualization.
+# 🛰️ Orbit
+
+### Deep-Space-Coding-Observatory
+
+**A local event pipeline for visualizing what Claude Code is doing, in real time.**
+
+![node](https://img.shields.io/badge/node-%3E%3D20-3c873a?logo=node.js&logoColor=white)
+![status](https://img.shields.io/badge/status-backend%20pipeline%20only-blueviolet)
+![deps](https://img.shields.io/badge/dependencies-zero-informational)
+
+</div>
+
+---
+
+Orbit wraps the `claude` CLI, captures its activity through session-scoped
+hooks, and exposes it as a local HTTP + Server-Sent Events stream — the
+backend half of a planned deep-space-themed dashboard for watching Claude
+Code work. Nothing is written to your persistent Claude Code settings: the
+hook wiring exists only for the lifetime of one `orbit` process.
+
+> **Status:** the 3D visualization frontend described in the
+> [design doc](docs/superpowers/specs/2026-09-22-orbit-design.md) is not
+> built yet — this repo currently ships the event pipeline it will run on.
+> `GET /` serves a placeholder page today.
+
+## How it works
+
+```text
+   claude (child process)
+        │  hooks + statusLine, wired via an inline --settings JSON
+        ▼
+   orbit-notify / orbit-statusline
+        │  read the hook's stdin JSON, map it to an Orbit event
+        ▼
+   local HTTP server  ── POST /event ──▶  in-memory state
+        │                                       │
+        └──────────────  GET /events  ◀─────────┘
+                     (Server-Sent Events)
+                              │
+                              ▼
+                    a future browser dashboard
+```
+
+Every Claude Code action — reading a file, editing, running a command,
+running tests, updating its todo list — is mapped to one of Orbit's event
+types and streamed out over SSE as it happens.
+
+---
 
 ## Usage
 
-    orbit claude [any claude arguments]
+```bash
+orbit claude [any claude arguments]
+```
 
-This starts a local HTTP+SSE server (default port 4321, falls back to a
-free port if taken), opens a browser tab, and spawns `claude` with the same
-arguments. Nothing is written to your persistent Claude Code settings —
-the hook wiring only exists for the lifetime of this one process.
+This picks a free port (default `4321`, falling back automatically if
+taken), starts the local server, opens a browser tab, and spawns `claude`
+with your arguments passed through untouched.
 
 ## Requirements
 
-Node.js >= 20.
+| | |
+|---|---|
+| **Runtime** | Node.js >= 20 |
+| **On your `PATH`** | `claude` (Claude Code) |
 
-## Getting `orbit` on your PATH
+## Installation
 
-Run `npm link` from this directory to install the `orbit`, `orbit-notify`,
-and `orbit-statusline` bin entries onto your PATH. Alternatively, skip
-installing entirely and run it directly:
+```bash
+npm link
+```
 
-    node bin/orbit claude [any claude arguments]
+This puts `orbit`, `orbit-notify`, and `orbit-statusline` on your `PATH`.
+To skip installing entirely, run it directly instead:
+
+```bash
+node bin/orbit claude [any claude arguments]
+```
+
+---
 
 ## Known limitations
 
-Running `orbit` replaces any existing Claude Code `statusLine` configuration
-for the session, so the terminal status bar goes blank while `orbit` is
-active. This will be addressed in a future update.
+| Limitation | Details |
+|---|---|
+| **Status line** | Running `orbit` replaces any existing Claude Code `statusLine` configuration for the session, so your terminal status bar goes blank while `orbit` is active. A future update will chain through to your existing status line instead of overriding it. |
+| **Windows** | Developed and tested on macOS. Hook-command quoting and the browser-launch fallback are not yet verified on Windows. |
 
 ## Development
 
-    npm test
+```bash
+npm test
+```
+
+Zero runtime dependencies — the whole pipeline is Node.js built-ins
+(`http`, `net`, `child_process`) plus the native `node:test` runner.
+
+---
+
+## Design docs
+
+| Doc | What it covers |
+|---|---|
+| [`claude-observatory-design_1.md`](docs/superpowers/claude-observatory-design_1.md) | Original visual concept |
+| [`2026-09-22-orbit-design.md`](docs/superpowers/specs/2026-09-22-orbit-design.md) | Full technical design |
+| [`2026-09-22-orbit-event-pipeline.md`](docs/superpowers/plans/2026-09-22-orbit-event-pipeline.md) | Implementation plan for this repo's current state |
