@@ -34,4 +34,16 @@ describe('formatResetCountdown', () => {
     const nowMs = resetsAt * 1000 - (2 * 60 + 15) * 60 * 1000; // 2h15m before
     expect(formatResetCountdown(resetsAt, nowMs)).toBe('2h 15m');
   });
+
+  it('formats days and hours once a day or more remains', () => {
+    const resetsAt = 1000000; // seconds
+    const nowMs = resetsAt * 1000 - ((3 * 24 + 11) * 60 + 19) * 60 * 1000; // 3d 11h 19m before
+    expect(formatResetCountdown(resetsAt, nowMs)).toBe('3d 11h');
+  });
+
+  it('formats exactly one day as days and hours', () => {
+    const resetsAt = 1000000; // seconds
+    const nowMs = resetsAt * 1000 - 24 * 60 * 60 * 1000;
+    expect(formatResetCountdown(resetsAt, nowMs)).toBe('1d 0h');
+  });
 });
