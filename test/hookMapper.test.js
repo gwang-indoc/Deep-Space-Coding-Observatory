@@ -1,0 +1,112 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mapHookEvent } from '../src/hookMapper.js';
+
+test('UserPromptSubmit maps to mission_start', () => {
+  const event = mapHookEvent({ hook_event_name: 'UserPromptSubmit', user_prompt: 'fix the bug' });
+  assert.equal(event.type, 'mission_start');
+  assert.equal(event.payload.prompt, 'fix the bug');
+});
+
+test('PreToolUse Read maps to file_read', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Read',
+    tool_input: { file_path: 'src/auth/session.ts' },
+  });
+  assert.deepEqual(event, { type: 'file_read', ts: event.ts, payload: { file: 'src/auth/session.ts' } });
+});
+
+test('PreToolUse Grep and Glob map to search', () => {
+  for (const tool_name of ['Grep', 'Glob']) {
+    const event = mapHookEvent({ hook_event_name: 'PreToolUse', tool_name, tool_input: {} });
+    assert.equal(event.type, 'search');
+  }
+});
+
+test('PreToolUse Edit and Write map to file_edit', () => {
+  for (const tool_name of ['Edit', 'Write']) {
+    const event = mapHookEvent({
+      hook_event_name: 'PreToolUse',
+      tool_name,
+      tool_input: { file_path: 'src/x.ts' },
+    });
+    assert.equal(event.type, 'file_edit');
+    assert.equal(event.payload.file, 'src/x.ts');
+  }
+});
+
+test('PreToolUse Bash without test keywords maps to run_command', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "wip"' },
+  });
+  assert.equal(event.type, 'run_command');
+});
+
+test('PreToolUse Bash with test keywords maps to run_tests', () => {
+  for (const command of ['npm test', 'pytest -x', 'npx vitest run', 'go test ./...']) {
+    const event = mapHookEvent({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command } });
+    assert.equal(event.type, 'run_tests', `expected run_tests for "${command}"`);
+  }
+});
+
+test('PreToolUse TodoWrite maps to planet_sync with normalized todos', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PreToolUse',
+    tool_name: 'TodoWrite',
+    tool_input: {
+      todos: [
+        { content: 'Read auth.ts', status: 'completed' },
+        { content: 'Fix timeout', status: 'in_progress' },
+      ],
+    },
+  });
+  assert.equal(event.type, 'planet_sync');
+  assert.deepEqual(event.payload.todos, [
+    { id: '0', text: 'Read auth.ts', status: 'completed' },
+    { id: '1', text: 'Fix timeout', status: 'in_progress' },
+  ]);
+});
+
+test('PreToolUse for an unmapped tool returns null', () => {
+  const event = mapHookEvent({ hook_event_name: 'PreToolUse', tool_name: 'WebFetch', tool_input: {} });
+  assert.equal(event, null);
+});
+
+test('PostToolUse Bash test run with passing output maps to test_result', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm test' },
+    tool_result: '47 passed, 0 failed',
+  });
+  assert.equal(event.type, 'test_result');
+  assert.deepEqual(event.payload, { passed: 47, failed: 0 });
+});
+
+test('PostToolUse Bash non-test command returns null', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'ls -la' },
+    tool_result: 'file1\nfile2',
+  });
+  assert.equal(event, null);
+});
+
+test('Notification maps to waiting', () => {
+  const event = mapHookEvent({ hook_event_name: 'Notification', message: 'Waiting for input' });
+  assert.equal(event.type, 'waiting');
+  assert.equal(event.payload.message, 'Waiting for input');
+});
+
+test('Stop maps to mission_complete', () => {
+  const event = mapHookEvent({ hook_event_name: 'Stop' });
+  assert.equal(event.type, 'mission_complete');
+});
+
+test('unknown hook_event_name returns null', () => {
+  assert.equal(mapHookEvent({ hook_event_name: 'PostToolUseFailure' }), null);
+});
