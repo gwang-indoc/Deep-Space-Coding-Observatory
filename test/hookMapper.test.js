@@ -2,7 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mapHookEvent } from '../src/hookMapper.js';
 
-test('UserPromptSubmit maps to mission_start', () => {
+test('UserPromptSubmit maps to mission_start using the "prompt" field', () => {
+  const event = mapHookEvent({ hook_event_name: 'UserPromptSubmit', prompt: 'fix the bug' });
+  assert.equal(event.type, 'mission_start');
+  assert.equal(event.payload.prompt, 'fix the bug');
+});
+
+test('UserPromptSubmit also accepts the "user_prompt" field name (backward compatibility)', () => {
   const event = mapHookEvent({ hook_event_name: 'UserPromptSubmit', user_prompt: 'fix the bug' });
   assert.equal(event.type, 'mission_start');
   assert.equal(event.payload.prompt, 'fix the bug');
@@ -75,7 +81,7 @@ test('PreToolUse for an unmapped tool returns null', () => {
   assert.equal(event, null);
 });
 
-test('PostToolUse Bash test run with passing output maps to test_result', () => {
+test('PostToolUse Bash test run with passing output (tool_result string) maps to test_result', () => {
   const event = mapHookEvent({
     hook_event_name: 'PostToolUse',
     tool_name: 'Bash',
@@ -84,6 +90,29 @@ test('PostToolUse Bash test run with passing output maps to test_result', () => 
   });
   assert.equal(event.type, 'test_result');
   assert.deepEqual(event.payload, { passed: 47, failed: 0 });
+});
+
+test('PostToolUse Bash test run with passing output (tool_response object) maps to test_result', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm test' },
+    tool_response: { stdout: '47 passed, 0 failed', stderr: '' },
+  });
+  assert.equal(event.type, 'test_result');
+  assert.deepEqual(event.payload, { passed: 47, failed: 0 });
+});
+
+test('PostToolUse prefers tool_response over tool_result when both are present', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm test' },
+    tool_response: { stdout: '3 passed, 1 failed', stderr: '' },
+    tool_result: '47 passed, 0 failed',
+  });
+  assert.equal(event.type, 'test_result');
+  assert.deepEqual(event.payload, { passed: 3, failed: 1 });
 });
 
 test('PostToolUse Bash non-test command returns null', () => {

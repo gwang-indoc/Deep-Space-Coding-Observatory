@@ -13,6 +13,17 @@ function normalizeTodos(todos) {
   }));
 }
 
+// There is genuine uncertainty about the real Claude Code PostToolUse payload
+// shape for Bash results: it may be `tool_result` (a string) or `tool_response`
+// (an object like `{ stdout, stderr, ... }`). Read defensively so either works.
+function extractBashResultText(raw) {
+  const result = raw.tool_response ?? raw.tool_result;
+  if (result == null) return '';
+  if (typeof result === 'string') return result;
+  if (typeof result === 'object') return [result.stdout, result.stderr].filter(Boolean).join('\n');
+  return String(result);
+}
+
 function parseTestResult(resultText) {
   const text = String(resultText ?? '');
   const passedMatch = text.match(/(\d+)\s+(?:passed|passing)/i);
@@ -31,7 +42,7 @@ export function mapHookEvent(raw) {
 
   switch (raw?.hook_event_name) {
     case 'UserPromptSubmit':
-      return { type: 'mission_start', ts, payload: { prompt: raw.user_prompt ?? '' } };
+      return { type: 'mission_start', ts, payload: { prompt: raw.prompt ?? raw.user_prompt ?? '' } };
 
     case 'PreToolUse': {
       const toolName = raw.tool_name;
@@ -59,7 +70,7 @@ export function mapHookEvent(raw) {
       const toolName = raw.tool_name;
       const toolInput = raw.tool_input ?? {};
       if (toolName === 'Bash' && classifyBash(toolInput.command) === 'run_tests') {
-        return { type: 'test_result', ts, payload: parseTestResult(raw.tool_result) };
+        return { type: 'test_result', ts, payload: parseTestResult(extractBashResultText(raw)) };
       }
       return null;
     }
