@@ -15,8 +15,8 @@
 ---
 
 Orbit wraps the `claude` CLI, captures its activity through session-scoped
-hooks, and exposes it as a local HTTP + Server-Sent Events stream — the
-backend half of a planned deep-space-themed dashboard for watching Claude
+hooks, and streams it over local HTTP + Server-Sent Events to a
+deep-space-themed 3D dashboard in your browser, so you can watch Claude
 Code work. Nothing is written to your persistent Claude Code settings: the
 hook wiring exists only for the lifetime of one `orbit` process.
 
@@ -47,7 +47,7 @@ context, and rate-limit usage.</sub>
                      (Server-Sent Events)
                               │
                               ▼
-                    a future browser dashboard
+              browser dashboard (web/dist, served at GET /)
 ```
 
 Every Claude Code action — reading a file, editing, running a command,
