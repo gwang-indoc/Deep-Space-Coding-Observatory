@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+// bin/orbit
+import { runOrbit } from '../src/cliMain.js';
+
+const exitCode = await runOrbit(process.argv.slice(2));
+process.exit(exitCode);
