@@ -24,8 +24,14 @@ function OrbitDashboard() {
         <Ship ships={orbitState.ships} testResultRing={orbitState.testResultRing} />
         <RadarPing radarPings={orbitState.radarPings} />
       </Scene>
-      <StatusHud lastStatus={lastStatus} />
-      <StepList activeStep={activeStep} recentLog={recentLog} />
+      <div style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: 16, right: 16, pointerEvents: 'auto' }}>
+          <StatusHud lastStatus={lastStatus} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 16, left: 16, pointerEvents: 'auto' }}>
+          <StepList activeStep={activeStep} recentLog={recentLog} />
+        </div>
+      </div>
     </div>
   );
 }
