@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+// bin/orbit-statusline
+import { runStatusline } from '../src/statuslineMain.js';
+
+await runStatusline({ stdin: process.stdin, env: process.env });
+process.exit(0);
