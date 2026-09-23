@@ -9,11 +9,17 @@ import { buildInlineSettings } from './settingsBuilder.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PORT = 4321;
 
-function defaultOpenBrowser(url) {
+// `command` is overridable only for testability (to force the "binary not found" async
+// error path deterministically); real callers always get the platform default.
+export function defaultOpenBrowser(url, { command } = {}) {
   const platform = process.platform;
-  const command = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
+  const resolvedCommand = command ?? (platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open');
   try {
-    spawn(command, platform === 'win32' ? ['', url] : [url], { stdio: 'ignore', detached: true }).unref();
+    const child = spawn(resolvedCommand, platform === 'win32' ? ['', url] : [url], { stdio: 'ignore', detached: true });
+    // best-effort only: an async spawn failure (e.g. missing `open`/`xdg-open` binary)
+    // must never crash the process via an unhandled 'error' event.
+    child.on('error', () => {});
+    child.unref();
   } catch {
     // best-effort only: failing to open a browser must never block the Claude Code session
   }
