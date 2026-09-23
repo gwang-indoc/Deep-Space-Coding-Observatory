@@ -1,5 +1,13 @@
+// Claude Code runs these `command` strings through a shell, so an unquoted path
+// containing a space or shell metacharacter (e.g. an install under
+// `~/My Projects/...`) would break silently. Single-quote it, escaping any
+// literal single quotes it might contain.
+function shellQuote(path) {
+  return `'${path.replace(/'/g, `'\\''`)}'`;
+}
+
 function commandHook(path) {
-  return { type: 'command', command: path };
+  return { type: 'command', command: shellQuote(path) };
 }
 
 export function buildInlineSettings({ notifyPath, statuslinePath }) {
