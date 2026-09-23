@@ -7,7 +7,7 @@
 **A local event pipeline for visualizing what Claude Code is doing, in real time.**
 
 ![node](https://img.shields.io/badge/node-%3E%3D20-3c873a?logo=node.js&logoColor=white)
-![status](https://img.shields.io/badge/status-backend%20pipeline%20only-blueviolet)
+![status](https://img.shields.io/badge/status-pipeline%20%2B%20dashboard-blueviolet)
 ![deps](https://img.shields.io/badge/dependencies-zero-informational)
 
 </div>
@@ -19,6 +19,12 @@ hooks, and exposes it as a local HTTP + Server-Sent Events stream — the
 backend half of a planned deep-space-themed dashboard for watching Claude
 Code work. Nothing is written to your persistent Claude Code settings: the
 hook wiring exists only for the lifetime of one `orbit` process.
+
+![Orbit dashboard mid-mission: the central star with todo planets in orbit, the Status HUD top-right, and the step list showing "Editing"](docs/images/orbit-dashboard.png)
+
+<sub>The dashboard during a session: each todo is a planet (green = done,
+blue = in progress), tool calls fly out as ships, and the HUD tracks model,
+context, and rate-limit usage.</sub>
 
 > **Status:** both halves are built — the event pipeline and the
 > [3D dashboard](docs/superpowers/specs/2026-09-22-orbit-frontend-design.md)
