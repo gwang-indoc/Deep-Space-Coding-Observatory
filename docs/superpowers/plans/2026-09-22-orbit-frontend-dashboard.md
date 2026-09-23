@@ -1803,7 +1803,9 @@ git commit -m "feat: add nebula background for the waiting state"
 
 **Interfaces:**
 - Consumes: everything from Tasks 2–12 (`applyOrbitEvent`, `createInitialOrbitState`, `createAnimationQueue`, `createEventStream`, `createWakeLockController`, `createVisibilityPauseController`, `StatusHud`, `StepList`, `Scene`, `CentralStar`, `IdleUniverse`, `PlanetLayer`, `Satellites`, `Ship`, `RadarPing`, `Nebula`)
-- Produces: `OrbitProvider({ children })` and `useOrbit()` from `web/src/state/OrbitProvider.jsx`; the fully assembled `App` default export from `web/src/App.jsx`
+- Produces: `OrbitProvider({ children })` and `useOrbit()` from `web/src/state/OrbitProvider.jsx`, exposing `{ orbitState, lastStatus, renderingPaused, activeStep, recentLog }` from context; the fully assembled `App` default export from `web/src/App.jsx`
+
+**Note on the backend's `snapshot` payload:** `src/state.js`'s `snapshotEvent` (already implemented) sends `{ todos, missionActive, lastStatus }` on every `GET /events` connect/reconnect specifically so a fresh or reconnected browser tab doesn't show a blank HUD (parent spec section 3). `eventSource.js` (Task 4) routes the whole `snapshot` payload to `onSnapshot` — this task's `onSnapshot` handler must forward `payload.lastStatus` into the HUD state in addition to dispatching the todos/missionActive fields into the reducer, or a reconnect leaves the HUD stale until the next periodic `status_update`.
 
 **Testing note:** this task is integration wiring across already-unit-tested pieces (queue, event source, reducer, wake lock, visibility) plus manually-verified rendering components — verified manually against the real running backend, not with a new automated test.
 
@@ -1820,18 +1822,79 @@ import { createVisibilityPauseController } from './visibilityPause.js';
 
 const OrbitContext = createContext(null);
 
+function labelForEvent(event) {
+  switch (event.type) {
+    case 'file_read':
+      return `Reading ${event.payload.file}`;
+    case 'file_edit':
+      return `Editing ${event.payload.file}`;
+    case 'run_command':
+      return `Running: ${event.payload.command}`;
+    case 'run_tests':
+      return `Running tests: ${event.payload.command}`;
+    case 'test_result':
+      return `Tests: ${event.payload.passed} passed, ${event.payload.failed} failed`;
+    case 'search':
+      return 'Searching';
+    case 'mission_start':
+      return 'Mission started';
+    case 'mission_complete':
+      return 'Mission complete';
+    case 'planet_sync':
+      return 'Todo list updated';
+    default:
+      return null;
+  }
+}
+
+function stepForEvent(type) {
+  switch (type) {
+    case 'mission_start':
+      return 'planning';
+    case 'file_read':
+    case 'search':
+      return 'reading';
+    case 'file_edit':
+      return 'editing';
+    case 'run_tests':
+    case 'test_result':
+      return 'testing';
+    default:
+      return undefined; // leave the previously active step as-is
+  }
+}
+
+const RECENT_LOG_LIMIT = 5;
+
 export function OrbitProvider({ children }) {
   const [orbitState, dispatch] = useReducer(applyOrbitEvent, undefined, createInitialOrbitState);
   const [lastStatus, setLastStatus] = useState(null);
   const [renderingPaused, setRenderingPaused] = useState(false);
+  const [activeStep, setActiveStep] = useState(null);
+  const [recentLog, setRecentLog] = useState([]);
   const queueRef = useRef(null);
   if (queueRef.current === null) {
     queueRef.current = createAnimationQueue();
   }
 
+  function applyDispatchedEvent(event) {
+    dispatch(event);
+    const label = labelForEvent(event);
+    if (label) {
+      setRecentLog((prev) => [label, ...prev].slice(0, RECENT_LOG_LIMIT));
+    }
+    const step = stepForEvent(event.type);
+    if (step !== undefined) {
+      setActiveStep(step);
+    }
+  }
+
   useEffect(() => {
     const stream = createEventStream({
-      onSnapshot: (payload) => dispatch({ type: 'snapshot', ts: Date.now(), payload }),
+      onSnapshot: (payload) => {
+        dispatch({ type: 'snapshot', ts: Date.now(), payload });
+        if (payload.lastStatus) setLastStatus(payload.lastStatus);
+      },
       onStatusUpdate: (payload) => setLastStatus(payload),
       onQueueableEvent: (event) => queueRef.current.push(event),
     });
@@ -1841,9 +1904,9 @@ export function OrbitProvider({ children }) {
       const next = queueRef.current.pop();
       if (next) {
         if (next.type === 'batch') {
-          next.payload.items.forEach((item) => dispatch(item));
+          next.payload.items.forEach((item) => applyDispatchedEvent(item));
         } else {
-          dispatch(next);
+          applyDispatchedEvent(next);
         }
       }
       timeoutId = setTimeout(tick, queueRef.current.nextIntervalMs());
@@ -1868,7 +1931,7 @@ export function OrbitProvider({ children }) {
   }, []);
 
   return (
-    <OrbitContext.Provider value={{ orbitState, lastStatus, renderingPaused }}>
+    <OrbitContext.Provider value={{ orbitState, lastStatus, renderingPaused, activeStep, recentLog }}>
       {children}
     </OrbitContext.Provider>
   );
@@ -1898,7 +1961,7 @@ import StatusHud from './hud/StatusHud.jsx';
 import StepList from './hud/StepList.jsx';
 
 function OrbitDashboard() {
-  const { orbitState, lastStatus, renderingPaused } = useOrbit();
+  const { orbitState, lastStatus, renderingPaused, activeStep, recentLog } = useOrbit();
 
   return (
     <div data-testid="orbit-app" style={{ position: 'relative', width: '100vw', height: '100vh' }}>
@@ -1912,7 +1975,7 @@ function OrbitDashboard() {
         <RadarPing radarPings={orbitState.radarPings} />
       </Scene>
       <StatusHud lastStatus={lastStatus} />
-      <StepList activeStep={null} recentLog={[]} />
+      <StepList activeStep={activeStep} recentLog={recentLog} />
     </div>
   );
 }
@@ -1933,7 +1996,7 @@ Expected: the `App.test.jsx` smoke test from Task 1 still passes (it only checks
 
 - [ ] **Step 4: Manually verify against the real backend**
 
-Run: `npm run build --workspace=web`, then from the repo root run `node bin/orbit claude -p "list the files in this repo"` and confirm the opened browser tab shows the full scene (not the placeholder), the HUD updates with real model/context/rate-limit data, and satellites/ships appear as Claude reads files and runs commands.
+Run: `npm run build --workspace=web`, then from the repo root run `node bin/orbit claude -p "list the files in this repo"` and confirm the opened browser tab shows the full scene (not the placeholder), the HUD updates with real model/context/rate-limit data, satellites/ships appear as Claude reads files and runs commands, and the step list's active dot and hover log update as different event types arrive. Then reload the browser tab mid-session (or open a second tab) and confirm the HUD shows the last known model/context/rate-limit numbers immediately from the reconnect `snapshot` rather than staying blank until the next periodic update.
 
 - [ ] **Step 5: Commit**
 
@@ -2084,7 +2147,8 @@ Run `npm run build --workspace=web` then `node bin/orbit claude` and, while driv
 - Test results render a pass/fail dot ring
 - A search triggers a radar ping
 - Staying idle/waiting for >3s fades in the nebula; it's gone again once activity resumes
-- The Status HUD shows model name, context %, and 5h/7d % with countdowns, refreshing without any visible flicker
+- The Status HUD shows model name, context %, and 5h/7d % with countdowns, refreshing without any visible flicker, and survives a page reload/reconnect without going blank (hydrated from the reconnect `snapshot`'s `lastStatus`)
+- The step list's active dot tracks the most recent activity type (reading/editing/testing/planning) and its hover log shows recent event descriptions
 - `mission_complete` on `Stop` triggers the central star's supernova-style flash and "MISSION COMPLETE" text, which fades after ~2.5s
 - Switching browser tabs away pauses the Three.js render loop (check via browser dev tools' performance/CPU indicator) while the SSE connection stays alive (events still show up immediately when you switch back)
 - The tab does not go to sleep/screensaver while active (Wake Lock)
