@@ -13,7 +13,7 @@
   },
   "workspaces": ["web"],
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "build": "npm run build --workspace=web"
   }
 }
