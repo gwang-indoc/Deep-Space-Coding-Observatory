@@ -1,0 +1,17 @@
+{
+  "name": "orbit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "orbit": "./bin/orbit",
+    "orbit-notify": "./bin/orbit-notify",
+    "orbit-statusline": "./bin/orbit-statusline"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}
