@@ -116,3 +116,17 @@ test('close() resolves promptly even with an open SSE connection (does not hang)
 
   assert.equal(result, 'closed', 'close() should resolve promptly instead of hanging on the open SSE connection');
 });
+
+test('GET / falls back to the placeholder when no frontend build exists', async () => {
+  const { port, close } = await createOrbitServer(0);
+  const response = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port, path: '/' }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => resolve({ statusCode: res.statusCode, body }));
+    }).on('error', reject);
+  });
+  assert.equal(response.statusCode, 200);
+  assert.match(response.body, /Orbit backend running/);
+  await close();
+});

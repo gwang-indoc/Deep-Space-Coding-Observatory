@@ -1,6 +1,43 @@
 // src/server.js
 import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createInitialState, applyEvent, snapshotEvent } from './state.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const WEB_DIST_DIR = path.join(__dirname, '..', 'web', 'dist');
+
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+};
+
+function serveStatic(req, res) {
+  const requestedPath = req.url === '/' ? '/index.html' : req.url;
+  const filePath = path.join(WEB_DIST_DIR, requestedPath);
+
+  // Use a path.sep-bounded prefix check (not a bare startsWith) so a sibling
+  // directory whose name happens to share the "dist" prefix (e.g. a future
+  // "web/dist-evil" or "web/dist-ssr") can't be reached from here.
+  if (filePath !== WEB_DIST_DIR && !filePath.startsWith(WEB_DIST_DIR + path.sep)) {
+    res.writeHead(403);
+    res.end();
+    return true;
+  }
+
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    return false;
+  }
+
+  const ext = path.extname(filePath);
+  res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] ?? 'application/octet-stream' });
+  fs.createReadStream(filePath).pipe(res);
+  return true;
+}
 
 const KNOWN_EVENT_TYPES = new Set([
   'file_read',
@@ -29,6 +66,9 @@ export function createOrbitServer(port) {
 
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/') {
+      if (fs.existsSync(WEB_DIST_DIR) && serveStatic(req, res)) {
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<!doctype html><title>Orbit</title><body>Orbit backend running.</body>');
       return;
@@ -68,6 +108,10 @@ export function createOrbitServer(port) {
           res.end();
         }
       });
+      return;
+    }
+
+    if (req.method === 'GET' && fs.existsSync(WEB_DIST_DIR) && serveStatic(req, res)) {
       return;
     }
 
