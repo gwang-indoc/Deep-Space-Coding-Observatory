@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+// bin/orbit-notify
+import { runNotify } from '../src/notifyMain.js';
+
+await runNotify({ stdin: process.stdin, env: process.env });
+process.exit(0);
