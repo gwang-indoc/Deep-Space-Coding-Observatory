@@ -88,6 +88,36 @@ test('a snapshot reflects prior planet_sync and status_update events', async () 
   await close();
 });
 
+test('a snapshot carries an active waiting state so a reload still shows the prompt', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'waiting', ts: 5000, payload: { message: 'Claude needs your permission to use Bash' } });
+
+  const [snapshot] = await collectSseEvents(port, 1);
+  assert.deepEqual(snapshot.payload.waiting, { since: 5000, message: 'Claude needs your permission to use Bash' });
+
+  await close();
+});
+
+test('any activity event clears the waiting state, but a status_update does not', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'waiting', ts: 5000, payload: { message: 'waiting' } });
+  await postEvent(port, {
+    type: 'status_update',
+    ts: 5100,
+    payload: { model: 'Sonnet 5', contextPct: 10, fiveHourPct: 5, fiveHourResetsAt: null, sevenDayPct: 2, sevenDayResetsAt: null },
+  });
+  let [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.waiting.since, 5000);
+
+  await postEvent(port, { type: 'file_read', ts: 6000, payload: { file: 'a.ts' } });
+  [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.waiting, null);
+
+  await close();
+});
+
 test('rejects a POST /event with an unknown type', async () => {
   const { port, close } = await createOrbitServer(0);
   const status = await postEvent(port, { type: 'not_a_real_type', ts: Date.now(), payload: {} });

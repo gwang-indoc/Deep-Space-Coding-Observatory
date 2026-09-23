@@ -18,6 +18,7 @@ export function createInitialOrbitState() {
     radarPings: [],
     testResultRing: null,
     waitingSince: null,
+    waitingMessage: null,
     lastCompletedAt: null,
   };
 }
@@ -39,11 +40,17 @@ function upsertSatellite(satellites, file, ts) {
 }
 
 export function applySnapshot(state, payload) {
-  return {
+  const next = {
     ...state,
     todos: payload?.todos ?? [],
     missionActive: Boolean(payload?.missionActive),
   };
+  // Older servers omit `waiting`; only a present value overrides local state.
+  if (payload?.waiting) {
+    next.waitingSince = payload.waiting.since;
+    next.waitingMessage = payload.waiting.message || null;
+  }
+  return next;
 }
 
 export function applyOrbitEvent(state, event) {
@@ -51,19 +58,20 @@ export function applyOrbitEvent(state, event) {
   const radarPings = pruneExpired(state.radarPings, RADAR_TTL_MS, event.ts);
   const baseState = ships === state.ships && radarPings === state.radarPings ? state : { ...state, ships, radarPings };
   const waitingSince = event.type === 'waiting' ? (baseState.waitingSince ?? event.ts) : null;
+  const waitingMessage = event.type === 'waiting' ? (event.payload?.message || baseState.waitingMessage || null) : null;
 
   switch (event.type) {
     case 'snapshot':
       return applySnapshot(baseState, event.payload);
 
     case 'mission_start':
-      return { ...baseState, missionActive: true, waitingSince, lastCompletedAt: null };
+      return { ...baseState, missionActive: true, waitingSince, waitingMessage, lastCompletedAt: null };
 
     case 'mission_complete':
-      return { ...baseState, missionActive: false, waitingSince, lastCompletedAt: event.ts };
+      return { ...baseState, missionActive: false, waitingSince, waitingMessage, lastCompletedAt: event.ts };
 
     case 'planet_sync':
-      return { ...baseState, todos: event.payload.todos, waitingSince };
+      return { ...baseState, todos: event.payload.todos, waitingSince, waitingMessage };
 
     case 'file_read':
     case 'file_edit':
@@ -71,6 +79,7 @@ export function applyOrbitEvent(state, event) {
         ...baseState,
         satellites: upsertSatellite(baseState.satellites, event.payload.file, event.ts),
         waitingSince,
+        waitingMessage,
       };
 
     case 'run_command':
@@ -86,6 +95,7 @@ export function applyOrbitEvent(state, event) {
           },
         ],
         waitingSince,
+        waitingMessage,
       };
 
     case 'test_result':
@@ -93,6 +103,7 @@ export function applyOrbitEvent(state, event) {
         ...baseState,
         testResultRing: { passed: event.payload.passed, failed: event.payload.failed, updatedAt: event.ts },
         waitingSince,
+        waitingMessage,
       };
 
     case 'search':
@@ -100,10 +111,11 @@ export function applyOrbitEvent(state, event) {
         ...baseState,
         radarPings: [...baseState.radarPings, { id: event.seq != null ? String(event.seq) : String(event.ts), startedAt: event.ts }],
         waitingSince,
+        waitingMessage,
       };
 
     case 'waiting':
-      return { ...baseState, waitingSince };
+      return { ...baseState, waitingSince, waitingMessage };
 
     default:
       return baseState;
@@ -120,6 +132,14 @@ export function selectActiveRadarPings(state, nowMs) {
 
 export function selectNebulaVisible(state, nowMs) {
   return state.waitingSince != null && nowMs - state.waitingSince >= NEBULA_DELAY_MS;
+}
+
+// One of 'waiting' (Claude needs the user), 'idle' (no mission running) or
+// 'active'. The completion flash counts as active so it can play out first.
+export function selectOrbitMode(state, nowMs) {
+  if (state.waitingSince != null) return 'waiting';
+  if (state.missionActive || selectMissionCompleteFlashVisible(state, nowMs)) return 'active';
+  return 'idle';
 }
 
 export function selectMissionCompleteFlashVisible(state, nowMs) {

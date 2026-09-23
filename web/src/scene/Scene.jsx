@@ -3,7 +3,7 @@ import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-export default function Scene({ renderingPaused, children }) {
+export default function Scene({ renderingPaused, mode = 'active', children }) {
   return (
     <Canvas
       frameloop={renderingPaused ? 'never' : 'always'}
@@ -12,7 +12,7 @@ export default function Scene({ renderingPaused, children }) {
       style={{ position: 'absolute', inset: 0, background: '#010208' }}
     >
       <PerspectiveCamera makeDefault position={[0, 7, 13]} fov={50} />
-      <OrbitControls enablePan={false} minDistance={5} maxDistance={40} autoRotate autoRotateSpeed={0.15} enableDamping />
+      <OrbitControls enablePan={false} minDistance={5} maxDistance={40} autoRotate={mode === 'active'} autoRotateSpeed={0.15} enableDamping />
       {/* Faint fill so the night sides of planets are not pure black; the sun is the key light. */}
       <ambientLight intensity={0.12} color="#8ea2ff" />
       {children}

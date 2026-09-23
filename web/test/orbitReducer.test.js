@@ -6,6 +6,7 @@ import {
   selectActiveShips,
   selectActiveRadarPings,
   selectNebulaVisible,
+  selectOrbitMode,
   selectMissionCompleteFlashVisible,
   SHIP_TTL_MS,
   RADAR_TTL_MS,
@@ -22,6 +23,7 @@ describe('createInitialOrbitState', () => {
       radarPings: [],
       testResultRing: null,
       waitingSince: null,
+      waitingMessage: null,
       lastCompletedAt: null,
     });
   });
@@ -238,5 +240,49 @@ describe('applyOrbitEvent: ship / radar ping ids', () => {
   it('falls back to String(event.ts) when seq is absent', () => {
     const state = applyOrbitEvent(createInitialOrbitState(), { type: 'search', ts: 1234, payload: {} });
     expect(state.radarPings).toEqual([{ id: '1234', startedAt: 1234 }]);
+  });
+});
+
+describe('selectOrbitMode', () => {
+  it('is idle before any mission starts', () => {
+    expect(selectOrbitMode(createInitialOrbitState(), 1000)).toBe('idle');
+  });
+
+  it('is active while a mission runs', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    expect(selectOrbitMode(state, 2000)).toBe('active');
+  });
+
+  it('stays active during the completion flash, then turns idle', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 2000, payload: {} });
+    expect(selectOrbitMode(state, 2000 + 2499)).toBe('active');
+    expect(selectOrbitMode(state, 2000 + 2500)).toBe('idle');
+  });
+
+  it('is waiting as soon as a waiting event arrives, even mid-mission', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'waiting', ts: 1500, payload: { message: 'Claude needs your permission' } });
+    expect(selectOrbitMode(state, 1500)).toBe('waiting');
+    expect(state.waitingMessage).toBe('Claude needs your permission');
+  });
+
+  it('leaves waiting when activity resumes', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'waiting', ts: 1500, payload: { message: 'x' } });
+    state = applyOrbitEvent(state, { type: 'run_command', ts: 1600, payload: { command: 'ls' } });
+    expect(selectOrbitMode(state, 1600)).toBe('active');
+    expect(state.waitingMessage).toBeNull();
+  });
+
+  it('restores waiting from a snapshot that carries it', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), {
+      type: 'snapshot',
+      ts: 2000,
+      payload: { todos: [], missionActive: true, waiting: { since: 1500, message: 'hi' } },
+    });
+    expect(selectOrbitMode(state, 2000)).toBe('waiting');
+    expect(state.waitingSince).toBe(1500);
+    expect(state.waitingMessage).toBe('hi');
   });
 });

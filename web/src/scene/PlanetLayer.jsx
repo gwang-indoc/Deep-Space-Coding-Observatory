@@ -26,7 +26,7 @@ function orbitRadius(index) {
   return 3 + index * 1.25;
 }
 
-function OrbitTrack({ radius, status }) {
+function OrbitTrack({ radius, status, dimmed }) {
   const geometry = useMemo(() => {
     const points = [];
     for (let i = 0; i <= 128; i += 1) {
@@ -36,7 +36,7 @@ function OrbitTrack({ radius, status }) {
     return new THREE.BufferGeometry().setFromPoints(points);
   }, [radius]);
 
-  const opacity = status === 'in_progress' ? 0.55 : status === 'completed' ? 0.35 : 0.12;
+  const opacity = (status === 'in_progress' ? 0.55 : status === 'completed' ? 0.35 : 0.12) * (dimmed ? 0.35 : 1);
   return (
     <line geometry={geometry}>
       <lineBasicMaterial color={STATUS_COLOR[status] ?? STATUS_COLOR.pending} transparent opacity={opacity} depthWrite={false} />
@@ -85,7 +85,7 @@ function Moon({ size }) {
   );
 }
 
-function Planet({ index, total, status }) {
+function Planet({ index, total, status, running }) {
   const groupRef = useRef(null);
   const bodyRef = useRef(null);
   const haloRef = useRef(null);
@@ -97,23 +97,30 @@ function Planet({ index, total, status }) {
   const glow = useMemo(() => glowTexture(), []);
   const pending = status === 'pending';
   const haloColor = status === 'pending' ? spec.atmosphere : STATUS_COLOR[status];
+  // Orbital angle and spin accumulate so the system can glide to a halt when
+  // Claude is idle or waiting, and resume from where it stopped.
+  const motion = useRef({ angle: (index / total) * Math.PI * 2, spin: 0, throttle: running ? 1 : 0 });
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const t = state.clock.elapsedTime;
-    const angle = (index / total) * Math.PI * 2 + t * speed;
-    groupRef.current.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-    if (bodyRef.current) bodyRef.current.rotation.y = t * (kind === 'jupiter' || kind === 'saturn' ? 0.5 : 0.25);
+    const m = motion.current;
+    m.throttle += ((running ? 1 : 0) - m.throttle) * Math.min(1, delta * 1.5);
+    m.angle += delta * speed * m.throttle;
+    m.spin += delta * (kind === 'jupiter' || kind === 'saturn' ? 0.5 : 0.25) * (0.15 + 0.85 * m.throttle);
+    groupRef.current.position.set(Math.cos(m.angle) * radius, 0, Math.sin(m.angle) * radius);
+    if (bodyRef.current) bodyRef.current.rotation.y = m.spin;
     if (haloRef.current) {
-      const pulse = status === 'in_progress' ? 1 + Math.sin(t * 3) * 0.12 : 1;
+      const pulse = status === 'in_progress' && running ? 1 + Math.sin(t * 3) * 0.12 : 1;
       haloRef.current.scale.setScalar(spec.size * 3.4 * pulse);
-      haloRef.current.material.opacity = status === 'in_progress' ? 0.55 : status === 'completed' ? 0.35 : 0.12;
+      const base = status === 'in_progress' ? 0.55 : status === 'completed' ? 0.35 : 0.12;
+      haloRef.current.material.opacity = base * (0.25 + 0.75 * m.throttle);
     }
   });
 
   return (
     <>
-      <OrbitTrack radius={radius} status={status} />
+      <OrbitTrack radius={radius} status={status} dimmed={!running} />
       <group ref={groupRef}>
         <sprite ref={haloRef} scale={spec.size * 4.2}>
           <spriteMaterial map={glow} color={haloColor} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
@@ -138,13 +145,13 @@ function Planet({ index, total, status }) {
   );
 }
 
-export default function PlanetLayer({ todos }) {
+export default function PlanetLayer({ todos, running = true }) {
   if (!todos || todos.length === 0) return null;
 
   return (
     <group>
       {todos.map((todo, index) => (
-        <Planet key={todo.id} index={index} total={todos.length} status={todo.status} />
+        <Planet key={todo.id} index={index} total={todos.length} status={todo.status} running={running} />
       ))}
     </group>
   );
