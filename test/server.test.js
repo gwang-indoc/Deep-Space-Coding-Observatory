@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import path from 'node:path';
 import { createOrbitServer } from '../src/server.js';
 
 function postEvent(port, event) {
@@ -118,7 +119,7 @@ test('close() resolves promptly even with an open SSE connection (does not hang)
 });
 
 test('GET / falls back to the placeholder when no frontend build exists', async () => {
-  const { port, close } = await createOrbitServer(0);
+  const { port, close } = await createOrbitServer(0, { webDistDir: '/nonexistent-web-dist-for-test' });
   try {
     const response = await new Promise((resolve, reject) => {
       http.get({ host: '127.0.0.1', port, path: '/' }, (res) => {
@@ -131,5 +132,30 @@ test('GET / falls back to the placeholder when no frontend build exists', async 
     assert.match(response.body, /Orbit backend running/);
   } finally {
     await close();
+  }
+});
+
+test('GET / blocks a sibling-directory traversal attempt outside webDistDir', async () => {
+  const os = await import('node:os');
+  const fsPromises = await import('node:fs/promises');
+  const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'orbit-traversal-test-'));
+  const webDistDir = path.join(tmpRoot, 'dist');
+  const siblingDir = path.join(tmpRoot, 'dist-evil');
+  await fsPromises.mkdir(webDistDir);
+  await fsPromises.mkdir(siblingDir);
+  await fsPromises.writeFile(path.join(siblingDir, 'secret.txt'), 'top secret');
+
+  const { port, close } = await createOrbitServer(0, { webDistDir });
+  try {
+    const response = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: '/../dist-evil/secret.txt' }, (res) => {
+        res.resume();
+        res.on('end', () => resolve({ statusCode: res.statusCode }));
+      }).on('error', reject);
+    });
+    assert.equal(response.statusCode, 403);
+  } finally {
+    await close();
+    await fsPromises.rm(tmpRoot, { recursive: true, force: true });
   }
 });

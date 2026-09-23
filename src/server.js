@@ -16,14 +16,14 @@ const MIME_TYPES = {
   '.json': 'application/json',
 };
 
-function serveStatic(req, res) {
+function serveStatic(req, res, webDistDir) {
   const requestedPath = req.url === '/' ? '/index.html' : req.url;
-  const filePath = path.join(WEB_DIST_DIR, requestedPath);
+  const filePath = path.join(webDistDir, requestedPath);
 
   // Use a path.sep-bounded prefix check (not a bare startsWith) so a sibling
   // directory whose name happens to share the "dist" prefix (e.g. a future
   // "web/dist-evil" or "web/dist-ssr") can't be reached from here.
-  if (filePath !== WEB_DIST_DIR && !filePath.startsWith(WEB_DIST_DIR + path.sep)) {
+  if (filePath !== webDistDir && !filePath.startsWith(webDistDir + path.sep)) {
     res.writeHead(403);
     res.end();
     return true;
@@ -53,7 +53,7 @@ const KNOWN_EVENT_TYPES = new Set([
   'status_update',
 ]);
 
-export function createOrbitServer(port) {
+export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR } = {}) {
   const state = createInitialState();
   const clients = new Set();
 
@@ -66,7 +66,7 @@ export function createOrbitServer(port) {
 
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/') {
-      if (fs.existsSync(WEB_DIST_DIR) && serveStatic(req, res)) {
+      if (fs.existsSync(webDistDir) && serveStatic(req, res, webDistDir)) {
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -111,7 +111,7 @@ export function createOrbitServer(port) {
       return;
     }
 
-    if (req.method === 'GET' && fs.existsSync(WEB_DIST_DIR) && serveStatic(req, res)) {
+    if (req.method === 'GET' && fs.existsSync(webDistDir) && serveStatic(req, res, webDistDir)) {
       return;
     }
 
