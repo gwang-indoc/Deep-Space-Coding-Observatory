@@ -204,23 +204,6 @@ html, body {
   color: #cbd5f5;
 }
 
-.mode-banner__notify {
-  margin-top: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid currentColor;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
-  opacity: 0.8;
-}
-
-.mode-banner__notify:hover {
-  opacity: 1;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .orbit-app[data-mode='waiting'] .mode-frame,
   .mode-banner--waiting {

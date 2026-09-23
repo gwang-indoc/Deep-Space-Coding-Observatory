@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import ModeBanner from '../src/hud/ModeBanner.jsx';
 
 describe('ModeBanner', () => {
@@ -21,15 +21,5 @@ describe('ModeBanner', () => {
     render(<ModeBanner mode="idle" message={null} />);
     expect(screen.getByText('IDLE')).toBeTruthy();
     expect(screen.getByTestId('mode-banner').dataset.mode).toBe('idle');
-  });
-
-  it('offers to enable desktop notifications only while permission is undecided', () => {
-    const onEnable = vi.fn();
-    const { rerender } = render(<ModeBanner mode="idle" message={null} notifyPermission="default" onEnableNotify={onEnable} />);
-    fireEvent.click(screen.getByRole('button', { name: /桌面通知/ }));
-    expect(onEnable).toHaveBeenCalledOnce();
-
-    rerender(<ModeBanner mode="idle" message={null} notifyPermission="granted" onEnableNotify={onEnable} />);
-    expect(screen.queryByRole('button', { name: /桌面通知/ })).toBeNull();
   });
 });

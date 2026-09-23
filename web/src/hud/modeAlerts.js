@@ -8,9 +8,3 @@ export function tabTitleFor(mode, tick) {
   if (mode === 'idle') return `${APP_TITLE} · 空闲`;
   return APP_TITLE;
 }
-
-// Notify only on the transition into waiting, never on first render (a reload
-// while already waiting should not re-announce it).
-export function shouldNotifyWaiting(prevMode, mode) {
-  return prevMode != null && prevMode !== 'waiting' && mode === 'waiting';
-}
