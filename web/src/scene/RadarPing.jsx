@@ -8,9 +8,10 @@ function Ping({ ping }) {
 
   useFrame(() => {
     if (!meshRef.current) return;
-    const progress = Math.min(1, (Date.now() - ping.startedAt) / RADAR_TTL_MS);
+    const progress = Math.min(1, Math.max(0, (Date.now() - ping.startedAt) / RADAR_TTL_MS));
     meshRef.current.scale.setScalar(1 + progress * 6);
     meshRef.current.material.opacity = 1 - progress;
+    meshRef.current.visible = progress < 1;
   });
 
   return (

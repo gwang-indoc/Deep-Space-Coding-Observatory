@@ -4,6 +4,11 @@ export const RADAR_TTL_MS = 900;
 const NEBULA_DELAY_MS = 3000;
 const COMPLETE_FLASH_MS = 2500;
 
+function pruneExpired(list, ttlMs, nowMs) {
+  const kept = list.filter((item) => nowMs - item.startedAt < ttlMs);
+  return kept.length === list.length ? list : kept;
+}
+
 export function createInitialOrbitState() {
   return {
     missionActive: false,
@@ -42,59 +47,66 @@ export function applySnapshot(state, payload) {
 }
 
 export function applyOrbitEvent(state, event) {
-  const waitingSince = event.type === 'waiting' ? (state.waitingSince ?? event.ts) : null;
+  const ships = pruneExpired(state.ships, SHIP_TTL_MS, event.ts);
+  const radarPings = pruneExpired(state.radarPings, RADAR_TTL_MS, event.ts);
+  const baseState = ships === state.ships && radarPings === state.radarPings ? state : { ...state, ships, radarPings };
+  const waitingSince = event.type === 'waiting' ? (baseState.waitingSince ?? event.ts) : null;
 
   switch (event.type) {
     case 'snapshot':
-      return applySnapshot(state, event.payload);
+      return applySnapshot(baseState, event.payload);
 
     case 'mission_start':
-      return { ...state, missionActive: true, waitingSince, lastCompletedAt: null };
+      return { ...baseState, missionActive: true, waitingSince, lastCompletedAt: null };
 
     case 'mission_complete':
-      return { ...state, missionActive: false, waitingSince, lastCompletedAt: event.ts };
+      return { ...baseState, missionActive: false, waitingSince, lastCompletedAt: event.ts };
 
     case 'planet_sync':
-      return { ...state, todos: event.payload.todos, waitingSince };
+      return { ...baseState, todos: event.payload.todos, waitingSince };
 
     case 'file_read':
     case 'file_edit':
       return {
-        ...state,
-        satellites: upsertSatellite(state.satellites, event.payload.file, event.ts),
+        ...baseState,
+        satellites: upsertSatellite(baseState.satellites, event.payload.file, event.ts),
         waitingSince,
       };
 
     case 'run_command':
     case 'run_tests':
       return {
-        ...state,
+        ...baseState,
         ships: [
-          ...state.ships,
-          { id: String(event.ts), kind: event.type === 'run_tests' ? 'tests' : 'command', startedAt: event.ts },
+          ...baseState.ships,
+          {
+            id: event.seq != null ? String(event.seq) : String(event.ts),
+            kind: event.type === 'run_tests' ? 'tests' : 'command',
+            startedAt: event.ts,
+          },
         ],
         waitingSince,
       };
 
     case 'test_result':
       return {
-        ...state,
+        ...baseState,
         testResultRing: { passed: event.payload.passed, failed: event.payload.failed, updatedAt: event.ts },
         waitingSince,
       };
 
     case 'search':
       return {
-        ...state,
-        radarPings: [...state.radarPings, { id: String(event.ts), startedAt: event.ts }],
+        ...baseState,
+        radarPings: [...baseState.radarPings, { id: event.seq != null ? String(event.seq) : String(event.ts), startedAt: event.ts }],
         waitingSince,
       };
 
     case 'waiting':
-      return { ...state, waitingSince };
+      return { ...baseState, waitingSince };
 
     default:
-      return state;
+      return baseState;
   }
 }
 

@@ -61,14 +61,18 @@ export function OrbitProvider({ children }) {
   if (queueRef.current === null) {
     queueRef.current = createAnimationQueue();
   }
+  const seqRef = useRef(0);
 
   function applyDispatchedEvent(event) {
-    dispatch(event);
-    const label = labelForEvent(event);
+    seqRef.current += 1;
+    const dispatchedEvent =
+      event.type === 'waiting' ? event : { ...event, ts: Date.now(), seq: seqRef.current };
+    dispatch(dispatchedEvent);
+    const label = labelForEvent(dispatchedEvent);
     if (label) {
       setRecentLog((prev) => [label, ...prev].slice(0, RECENT_LOG_LIMIT));
     }
-    const step = stepForEvent(event.type);
+    const step = stepForEvent(dispatchedEvent.type);
     if (step !== undefined) {
       setActiveStep(step);
     }

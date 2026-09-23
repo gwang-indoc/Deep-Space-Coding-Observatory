@@ -7,6 +7,8 @@ import {
   selectActiveRadarPings,
   selectNebulaVisible,
   selectMissionCompleteFlashVisible,
+  SHIP_TTL_MS,
+  RADAR_TTL_MS,
 } from '../src/state/orbitReducer.js';
 
 describe('createInitialOrbitState', () => {
@@ -184,5 +186,57 @@ describe('applyOrbitEvent: unknown event types', () => {
   it('returns the state unchanged', () => {
     const state = createInitialOrbitState();
     expect(applyOrbitEvent(state, { type: 'status_update', ts: 1, payload: {} })).toBe(state);
+  });
+});
+
+describe('applyOrbitEvent: pruning expired ships and radar pings', () => {
+  it('prunes a ship past its TTL when any unrelated event is applied', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'run_command', ts: 1000, payload: {} });
+    expect(state.ships).toHaveLength(1);
+    state = applyOrbitEvent(state, { type: 'file_read', ts: 1000 + SHIP_TTL_MS + 1, payload: { file: 'a.ts' } });
+    expect(state.ships).toEqual([]);
+  });
+
+  it('prunes a radar ping past its TTL when any unrelated event is applied', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'search', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'planet_sync', ts: 1000 + RADAR_TTL_MS, payload: { todos: [] } });
+    expect(state.radarPings).toEqual([]);
+  });
+
+  it('prunes even on event types the reducer otherwise ignores', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'run_command', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'status_update', ts: 1000 + SHIP_TTL_MS, payload: {} });
+    expect(state.ships).toEqual([]);
+  });
+
+  it('keeps ships and pings still within their TTL', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'run_command', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'search', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'file_read', ts: 1000 + RADAR_TTL_MS - 1, payload: { file: 'a.ts' } });
+    expect(state.ships).toHaveLength(1);
+    expect(state.radarPings).toHaveLength(1);
+  });
+});
+
+describe('applyOrbitEvent: ship / radar ping ids', () => {
+  it('uses event.seq for the ship id when present', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), { type: 'run_command', ts: 1000, seq: 7, payload: {} });
+    expect(state.ships).toEqual([{ id: '7', kind: 'command', startedAt: 1000 }]);
+  });
+
+  it('uses event.seq for the radar ping id when present', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), { type: 'search', ts: 1000, seq: 8, payload: {} });
+    expect(state.radarPings).toEqual([{ id: '8', startedAt: 1000 }]);
+  });
+
+  it('gives distinct ids to same-millisecond events that carry distinct seq values', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'run_command', ts: 1000, seq: 1, payload: {} });
+    state = applyOrbitEvent(state, { type: 'run_tests', ts: 1000, seq: 2, payload: {} });
+    expect(state.ships.map((s) => s.id)).toEqual(['1', '2']);
+  });
+
+  it('falls back to String(event.ts) when seq is absent', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), { type: 'search', ts: 1234, payload: {} });
+    expect(state.radarPings).toEqual([{ id: '1234', startedAt: 1234 }]);
   });
 });

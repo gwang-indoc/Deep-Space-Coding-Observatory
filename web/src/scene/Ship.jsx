@@ -11,6 +11,7 @@ function ShipMesh({ ship }) {
     const angle = progress * Math.PI * 2;
     const radius = 4 + progress * 4;
     meshRef.current.position.set(Math.cos(angle) * radius, 0.1, Math.sin(angle) * radius);
+    meshRef.current.visible = progress < 1;
   });
 
   return (
