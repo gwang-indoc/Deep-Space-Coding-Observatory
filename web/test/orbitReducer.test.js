@@ -150,6 +150,16 @@ describe('applyOrbitEvent: waiting / nebula visibility', () => {
   it('selectNebulaVisible is false when never waiting', () => {
     expect(selectNebulaVisible(createInitialOrbitState(), 999999)).toBe(false);
   });
+
+  it('preserves waitingSince across a snapshot event (reconnect is not evidence of resumed activity)', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'waiting', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, {
+      type: 'snapshot',
+      ts: 2000,
+      payload: { todos: [], missionActive: false },
+    });
+    expect(state.waitingSince).toBe(1000);
+  });
 });
 
 describe('snapshot handling', () => {
