@@ -20,10 +20,11 @@ backend half of a planned deep-space-themed dashboard for watching Claude
 Code work. Nothing is written to your persistent Claude Code settings: the
 hook wiring exists only for the lifetime of one `orbit` process.
 
-> **Status:** the 3D visualization frontend described in the
-> [design doc](docs/superpowers/specs/2026-09-22-orbit-design.md) is not
-> built yet — this repo currently ships the event pipeline it will run on.
-> `GET /` serves a placeholder page today.
+> **Status:** both halves are built — the event pipeline and the
+> [3D dashboard](docs/superpowers/specs/2026-09-22-orbit-frontend-design.md)
+> described in the [design doc](docs/superpowers/specs/2026-09-22-orbit-design.md).
+> Run `npm run build --workspace=web` before using `orbit` so `GET /` serves
+> the real dashboard instead of the plain-text placeholder.
 
 ## How it works
 
@@ -96,6 +97,19 @@ npm test
 
 Zero runtime dependencies — the whole pipeline is Node.js built-ins
 (`http`, `net`, `child_process`) plus the native `node:test` runner.
+
+## Building the frontend
+
+    npm run build --workspace=web
+
+This bundles the React Three Fiber dashboard into `web/dist/`, which
+`orbit`'s server serves at `GET /`. Without a build, `GET /` falls back to
+a plain-text placeholder — the backend and its tests never require a
+frontend build to exist.
+
+For live-reload frontend development, run `npm run dev --workspace=web` in
+one terminal and `orbit claude [args...]` in another; the dashboard's dev
+server proxies `/events` and `/event` to the running backend.
 
 ---
 
