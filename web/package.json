@@ -14,7 +14,8 @@
     "three": "^0.166.0",
     "@react-three/fiber": "^8.17.0",
     "@react-three/drei": "^9.111.0",
-    "framer-motion": "^11.3.0"
+    "framer-motion": "^11.3.0",
+    "@react-three/postprocessing": "~2.16.3"
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",

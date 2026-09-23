@@ -7,6 +7,7 @@ import Satellites from './scene/Satellites.jsx';
 import Ship from './scene/Ship.jsx';
 import RadarPing from './scene/RadarPing.jsx';
 import Nebula from './scene/Nebula.jsx';
+import Comets from './scene/Comets.jsx';
 import StatusHud from './hud/StatusHud.jsx';
 import StepList from './hud/StepList.jsx';
 
@@ -15,9 +16,10 @@ function OrbitDashboard() {
 
   return (
     <div data-testid="orbit-app" style={{ position: 'relative', width: '100vw', height: '100vh' }}>
-      <Scene missionActive={orbitState.missionActive} renderingPaused={renderingPaused}>
+      <Scene renderingPaused={renderingPaused}>
         <IdleUniverse />
         <Nebula waitingSince={orbitState.waitingSince} />
+        <Comets />
         <CentralStar missionActive={orbitState.missionActive} lastCompletedAt={orbitState.lastCompletedAt} />
         <PlanetLayer todos={orbitState.todos} />
         <Satellites satellites={orbitState.satellites} />

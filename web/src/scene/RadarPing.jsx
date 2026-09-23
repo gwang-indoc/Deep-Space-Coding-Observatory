@@ -17,7 +17,7 @@ function Ping({ ping }) {
   return (
     <mesh ref={meshRef} rotation={[Math.PI / 2, 0, 0]}>
       <ringGeometry args={[1, 1.05, 32]} />
-      <meshBasicMaterial color="#5fb0ff" transparent opacity={0.6} side={THREE.DoubleSide} />
+      <meshBasicMaterial color="#5fb0ff" transparent opacity={0.6} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
     </mesh>
   );
 }
