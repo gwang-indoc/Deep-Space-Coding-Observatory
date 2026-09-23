@@ -39,13 +39,55 @@ describe('createWakeLockController', () => {
     expect(release).toHaveBeenCalled();
   });
 
-  it('re-requests the lock when the page becomes visible again after losing it', async () => {
-    const { documentImpl, navigatorImpl, request, fireVisibilityChange } = makeFakeEnv();
+  it('re-requests the lock when the browser reclaims it in the background and the page becomes visible again', async () => {
+    const listeners = {};
+    const documentImpl = {
+      visibilityState: 'visible',
+      addEventListener: (type, handler) => { listeners[type] = handler; },
+      removeEventListener: (type) => { delete listeners[type]; },
+    };
+    const sentinelListeners = {};
+    const release = vi.fn();
+    const sentinel = {
+      release,
+      addEventListener: (type, handler) => { sentinelListeners[type] = handler; },
+    };
+    const request = vi.fn().mockResolvedValue(sentinel);
+    const navigatorImpl = { wakeLock: { request } };
+
     const controller = createWakeLockController({ navigatorImpl, documentImpl });
     await controller.start();
-    controller.stop(); // simulates the sentinel being released (e.g. tab hidden)
+    expect(request).toHaveBeenCalledTimes(1);
+
+    // simulate the browser silently reclaiming the lock (e.g. the tab was hidden by the OS)
+    sentinelListeners.release?.();
+
     documentImpl.visibilityState = 'visible';
-    fireVisibilityChange();
+    listeners.visibilitychange?.();
+
     expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('stop() fully tears down: releases the sentinel and stops reacting to future visibility changes', async () => {
+    const listeners = {};
+    const documentImpl = {
+      visibilityState: 'visible',
+      addEventListener: (type, handler) => { listeners[type] = handler; },
+      removeEventListener: (type) => { delete listeners[type]; },
+    };
+    const release = vi.fn();
+    const sentinel = { release, addEventListener: () => {} };
+    const request = vi.fn().mockResolvedValue(sentinel);
+    const navigatorImpl = { wakeLock: { request } };
+
+    const controller = createWakeLockController({ navigatorImpl, documentImpl });
+    await controller.start();
+    controller.stop();
+    expect(release).toHaveBeenCalled();
+
+    documentImpl.visibilityState = 'visible';
+    listeners.visibilitychange?.();
+
+    expect(request).toHaveBeenCalledTimes(1); // no re-request after a real stop()
   });
 });

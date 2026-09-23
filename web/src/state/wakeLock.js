@@ -8,6 +8,9 @@ export function createWakeLockController({
     if (!navigatorImpl?.wakeLock) return;
     try {
       sentinel = await navigatorImpl.wakeLock.request('screen');
+      sentinel?.addEventListener?.('release', () => {
+        sentinel = null;
+      });
     } catch {
       sentinel = null;
     }
@@ -25,6 +28,7 @@ export function createWakeLockController({
   }
 
   function stop() {
+    documentImpl?.removeEventListener?.('visibilitychange', handleVisibilityChange);
     sentinel?.release?.();
     sentinel = null;
   }
