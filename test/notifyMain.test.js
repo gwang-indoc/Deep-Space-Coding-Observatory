@@ -43,3 +43,16 @@ test('swallows malformed JSON on stdin without throwing', async () => {
   const stdin = Readable.from(['not json']);
   await assert.doesNotReject(runNotify({ stdin, env: { ORBIT_PORT: '1' } }));
 });
+
+test('resolves without throwing when ORBIT_PORT points at an unreachable server (connection refused)', async () => {
+  // Open a real server to claim an ephemeral port, then close it immediately so
+  // nothing is listening on it. This genuinely exercises postJson's ECONNREFUSED
+  // path end-to-end, rather than relying on documented behavior alone.
+  const server = http.createServer((req, res) => res.end());
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  await new Promise((resolve) => server.close(resolve));
+
+  const stdin = Readable.from([JSON.stringify({ hook_event_name: 'UserPromptSubmit', user_prompt: 'fix bug' })]);
+  await assert.doesNotReject(runNotify({ stdin, env: { ORBIT_PORT: String(port) } }));
+});
