@@ -102,6 +102,10 @@ export function mapHookEvent(raw) {
     }
 
     case 'Notification':
+      // The idle reminder fires about a minute after a turn ends, even while a
+      // background subagent is still working. Stop already covers a truly idle
+      // session, so only real asks (permission, questions) count as waiting.
+      if (raw.notification_type === 'idle_prompt') return null;
       return { type: 'waiting', ts, payload: { message: raw.message ?? '' } };
 
     case 'Stop':

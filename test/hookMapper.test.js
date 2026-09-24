@@ -182,6 +182,16 @@ test('Notification maps to waiting', () => {
   assert.equal(event.payload.message, 'Waiting for input');
 });
 
+test('a permission prompt maps to waiting', () => {
+  const event = mapHookEvent({ hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission to use Bash' });
+  assert.equal(event.type, 'waiting');
+});
+
+test('an idle reminder is ignored so a long background subagent keeps the sun lit', () => {
+  const event = mapHookEvent({ hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
+  assert.equal(event, null);
+});
+
 test('Stop maps to mission_complete', () => {
   const event = mapHookEvent({ hook_event_name: 'Stop' });
   assert.equal(event.type, 'mission_complete');
