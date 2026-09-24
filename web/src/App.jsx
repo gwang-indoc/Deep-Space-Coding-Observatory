@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { OrbitProvider, useOrbit } from './state/OrbitProvider.jsx';
 import { selectActiveMs, selectOrbitMode } from './state/orbitReducer.js';
 import { MILESTONES, unlockedMilestones } from './state/milestones.js';
+import { boostedPlanets, unlockedPlanetCount } from './state/planets.js';
 import Scene from './scene/Scene.jsx';
 import CentralStar from './scene/CentralStar.jsx';
 import IdleUniverse from './scene/IdleUniverse.jsx';
@@ -41,6 +42,12 @@ function OrbitDashboard() {
   // keeps the array stable between ticks so the scene and toast don't churn.
   const unlocked = useMemo(() => MILESTONES.slice(0, unlockedCount), [unlockedCount]);
   const toast = useMilestoneToast(unlocked);
+  const planetCount = unlockedPlanetCount(activeMs);
+  // Subagents no longer get planets of their own; each running one boosts a lit planet.
+  const boosted = useMemo(
+    () => boostedPlanets(orbitState.todos.filter((t) => t.status === 'in_progress').map((t) => t.id), planetCount),
+    [orbitState.todos, planetCount],
+  );
 
   return (
     <div data-testid="orbit-app" data-mode={mode} className="orbit-app" style={{ position: 'relative', width: '100vw', height: '100vh' }}>
@@ -51,7 +58,7 @@ function OrbitDashboard() {
           <Comets />
           <Wonders unlocked={unlocked} />
           <CentralStar mode={mode} lastCompletedAt={orbitState.lastCompletedAt} />
-          <PlanetLayer todos={orbitState.todos} running={mode === 'active'} />
+          <PlanetLayer count={planetCount} boosted={boosted} running={mode === 'active'} />
           <Satellites satellites={orbitState.satellites} />
           <Ship ships={orbitState.ships} testResultRing={orbitState.testResultRing} />
           <RadarPing radarPings={orbitState.radarPings} />
