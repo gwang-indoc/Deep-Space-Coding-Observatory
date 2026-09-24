@@ -63,8 +63,8 @@ Orbit 会找一个空闲端口（默认 `4321`），启动本地服务器，打�
 
 | 恒星 | 状态 | 含义 |
 |---|---|---|
-| 🔆 炽烈翻滚的太阳，镜头缓缓环绕 | **工作中** | Claude 正在干活 |
-| 🔴 暗红恒星，琥珀色警示光环向外扩散，紫色星云飘入 | **等待中** | Claude 需要你输入（横幅显示它的提示，标签页标题闪烁 `⚠ 需要你的输入`） |
+| 🔆 炽烈翻滚的太阳，镜头缓缓环绕 | **工作中** | Claude 正在干活；主对话这一轮结束后，只要还有后台子代理在跑，太阳也保持明亮 |
+| 🔴 暗红恒星，琥珀色警示光环向外扩散，紫色星云飘入 | **等待中** | Claude 需要你操作：授权请求或向你提问（横幅显示它的提示，标签页标题闪烁 `⚠ 需要你的输入`） |
 | 🟤 燃尽的余烬，行星慢慢停下 | **空闲** | 没有任务在跑（`IDLE · 等待新任务`） |
 | ✨ 明亮耀斑 + **MISSION COMPLETE** | 刚完成 | Claude 结束了这一轮 |
 
@@ -147,7 +147,7 @@ Orbit 会找一个空闲端口（默认 `4321`），启动本地服务器，打�
 | `PreToolUse` `Read` · `Edit`/`Write` · `Grep`/`Glob` · `Bash` | `file_read` · `file_edit` · `search` · `run_command` / `run_tests` |
 | `PreToolUse` / `PostToolUse` `Agent`/`Task` | `agent_start` / `agent_end` |
 | `PostToolUse` 测试命令 | `test_result` |
-| `Notification` | `waiting` |
+| `Notification`（空闲提醒除外） | `waiting` |
 | `Stop` | `mission_complete` |
 | `statusLine` | `status_update`（模型、上下文 %、速率限制） |
 

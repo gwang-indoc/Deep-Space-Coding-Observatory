@@ -65,8 +65,8 @@ read it.
 
 | Star | Mode | Meaning |
 |---|---|---|
-| 🔆 Blazing, boiling sun; camera slowly orbits | **Active** | Claude is working |
-| 🔴 Dim red star, expanding amber warning rings, violet nebula drifting in | **Waiting** | Claude needs your input (the banner shows its message and the tab title blinks `⚠ 需要你的输入`) |
+| 🔆 Blazing, boiling sun; camera slowly orbits | **Active** | Claude is working, including while a background subagent runs after the main turn has ended |
+| 🔴 Dim red star, expanding amber warning rings, violet nebula drifting in | **Waiting** | Claude needs your input: a permission prompt or a question (the banner shows its message and the tab title blinks `⚠ 需要你的输入`) |
 | 🟤 Burnt-out ember; planets glide to a halt | **Idle** | No task running (`IDLE · 等待新任务`) |
 | ✨ Bright flare + **MISSION COMPLETE** | Just finished | Claude ended its turn |
 
@@ -154,7 +154,7 @@ The **Uptime HUD** (bottom-right) shows total working time. The **Status HUD**
 | `PreToolUse` `Read` · `Edit`/`Write` · `Grep`/`Glob` · `Bash` | `file_read` · `file_edit` · `search` · `run_command` / `run_tests` |
 | `PreToolUse` / `PostToolUse` `Agent`/`Task` | `agent_start` / `agent_end` |
 | `PostToolUse` test command | `test_result` |
-| `Notification` | `waiting` |
+| `Notification` (except the idle reminder) | `waiting` |
 | `Stop` | `mission_complete` |
 | `statusLine` | `status_update` (model, context %, rate limits) |
 
