@@ -1,7 +1,7 @@
 // Scenery unlocked by how long Claude has been actively working this session.
 // Once unlocked a body stays for the rest of the session.
 export const MILESTONES = [
-  { id: 'meteors', minutes: 5, label: '流星雨' },
+  { id: 'cluster', minutes: 5, label: '疏散星团' },
   { id: 'asteroids', minutes: 10, label: '小行星带' },
   { id: 'giant', minutes: 20, label: '远方巨行星' },
   { id: 'galaxy', minutes: 40, label: '旋涡星系' },

@@ -1,5 +1,5 @@
 import Appear from './Appear.jsx';
-import ShootingStars from './ShootingStars.jsx';
+import StarCluster from './StarCluster.jsx';
 import AsteroidBelt from './AsteroidBelt.jsx';
 import GasGiant from './GasGiant.jsx';
 import Galaxy from './Galaxy.jsx';
@@ -17,7 +17,7 @@ function around(azimuthDeg, radius) {
 }
 
 const PLACEMENT = {
-  meteors: { Component: ShootingStars, appear: false },
+  cluster: { Component: StarCluster, position: around(105, 48) },
   asteroids: { Component: AsteroidBelt },
   giant: { Component: GasGiant },
   galaxy: { Component: Galaxy, position: around(-35, 80) },

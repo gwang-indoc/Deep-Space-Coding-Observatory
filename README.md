@@ -23,7 +23,7 @@ The longer it works, the more of the universe opens up: from Earth to a black ho
 
 ---
 
-![Orbit dashboard mid-mission: the central star with planets in orbit, the Status HUD top-right, and the step list showing "Editing"](docs/images/orbit-dashboard.png)
+![Orbit two hours into a session: all eight planets lit, a black hole and a supernova remnant beyond the asteroid belt, a comet swinging past the sun, and the green/red test ring](docs/images/orbit-dashboard.png)
 
 Orbit wraps the `claude` CLI and turns the session into a real-time 3D
 deep-space dashboard in your browser. You can tell at a glance what Claude is
@@ -111,9 +111,11 @@ When a new wonder unlocks, a toast announces it. Distant wonders are spread
 around the sky, so the slowly turning camera brings them into view one at a
 time.
 
+![A pulsar sweeping its beams, the distant gas giant with its moons, and the edge of the spiral galaxy](docs/images/orbit-wonders.png)
+
 | Working time | Wonder | What appears |
 |---:|---|---|
-| 5 min | ☄️ **Meteor shower** · 流星雨 | Meteors streak across whatever part of the sky you're facing |
+| 5 min | ✨ **Open star cluster** · 疏散星团 | A young cluster of blue-white stars in a faint reflection nebula, like the Pleiades |
 | 10 min | 🪨 **Asteroid belt** · 小行星带 | A ring of lumpy, tumbling rocks |
 | 20 min | 🟠 **Distant gas giant** · 远方巨行星 | A far-out Jupiter-class world with four Galilean moons |
 | 40 min | 🌀 **Spiral galaxy** · 旋涡星系 | Two-armed spiral, warm core, blue star-forming arms |
