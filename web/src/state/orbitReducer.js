@@ -27,8 +27,13 @@ export function createInitialOrbitState() {
 
 // Mirrors the server: accumulate time only while a mission runs and Claude is
 // not waiting on the user. Returns the same object when nothing changes.
+// A background subagent keeps Claude working after the main turn has ended.
+function hasRunningAgent(state) {
+  return state.todos.some((t) => t.status === 'in_progress');
+}
+
 function trackActiveTime(state, ts) {
-  const running = state.missionActive && state.waitingSince == null;
+  const running = (state.missionActive || hasRunningAgent(state)) && state.waitingSince == null;
   if (running && state.activeSince == null) return { ...state, activeSince: ts };
   if (!running && state.activeSince != null) {
     return { ...state, activeMs: state.activeMs + Math.max(0, ts - state.activeSince), activeSince: null };
@@ -195,7 +200,7 @@ export function selectNebulaVisible(state, nowMs) {
 // 'active'. The completion flash counts as active so it can play out first.
 export function selectOrbitMode(state, nowMs) {
   if (state.waitingSince != null) return 'waiting';
-  if (state.missionActive || selectMissionCompleteFlashVisible(state, nowMs)) return 'active';
+  if (state.missionActive || hasRunningAgent(state) || selectMissionCompleteFlashVisible(state, nowMs)) return 'active';
   return 'idle';
 }
 

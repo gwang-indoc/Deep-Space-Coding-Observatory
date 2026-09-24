@@ -311,6 +311,15 @@ describe('selectOrbitMode', () => {
     expect(state.waitingMessage).toBeNull();
   });
 
+  it('stays active after the turn ends while a background subagent is still running', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 1100, payload: { id: 'a', text: 'A' } });
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 2000, payload: {} });
+    expect(selectOrbitMode(state, 60000)).toBe('active');
+    state = applyOrbitEvent(state, { type: 'agent_end', ts: 61000, payload: { id: 'a', status: 'completed' } });
+    expect(selectOrbitMode(state, 61000 + 2500)).toBe('idle');
+  });
+
   it('restores waiting from a snapshot that carries it', () => {
     const state = applyOrbitEvent(createInitialOrbitState(), {
       type: 'snapshot',
@@ -332,6 +341,15 @@ describe('selectActiveMs', () => {
     state = applyOrbitEvent(state, { type: 'file_read', ts: 8000, payload: { file: 'a' } });
     state = applyOrbitEvent(state, { type: 'mission_complete', ts: 10000, payload: {} });
     expect(selectActiveMs(state, 99999)).toBe(6000);
+  });
+
+  it('keeps counting while a background subagent runs after the turn ends', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 1100, payload: { id: 'a', text: 'A' } });
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 2000, payload: {} });
+    expect(selectActiveMs(state, 5000)).toBe(4000);
+    state = applyOrbitEvent(state, { type: 'agent_end', ts: 6000, payload: { id: 'a', status: 'completed' } });
+    expect(selectActiveMs(state, 99999)).toBe(5000);
   });
 
   it('hydrates from a snapshot, including a still-running span', () => {

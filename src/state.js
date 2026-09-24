@@ -12,8 +12,13 @@ export function createInitialState() {
   };
 }
 
+// A background subagent keeps Claude working after the main turn has ended.
+function hasRunningAgent(todos) {
+  return todos.some((t) => t.status === 'in_progress');
+}
+
 function trackActiveTime(state, ts) {
-  const running = state.missionActive && !state.waiting;
+  const running = (state.missionActive || hasRunningAgent(state.todos)) && !state.waiting;
   if (running && state.activeSince == null) {
     state.activeSince = ts;
   } else if (!running && state.activeSince != null) {

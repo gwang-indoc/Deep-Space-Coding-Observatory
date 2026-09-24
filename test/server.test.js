@@ -137,6 +137,23 @@ test('a snapshot reports accumulated active time, excluding time spent waiting',
   await close();
 });
 
+test('active time keeps accruing while a background subagent runs after the turn ends', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'mission_start', ts: 1000, payload: {} });
+  await postEvent(port, { type: 'agent_start', ts: 1100, payload: { id: 'a', text: 'A' } });
+  await postEvent(port, { type: 'mission_complete', ts: 2000, payload: {} });
+  let [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.activeSince, 1000);
+
+  await postEvent(port, { type: 'agent_end', ts: 6000, payload: { id: 'a', status: 'completed' } });
+  [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.activeMs, 5000);
+  assert.equal(snapshot.payload.activeSince, null);
+
+  await close();
+});
+
 test('subagent events become planets, and a new prompt clears only the finished ones', async () => {
   const { port, close } = await createOrbitServer(0);
 
