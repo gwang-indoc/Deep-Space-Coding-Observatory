@@ -43,7 +43,7 @@ export async function runOrbit(argv, { claudeBin = 'claude', openBrowserFn = def
 
   const notifyPath = path.join(__dirname, '..', 'bin', 'orbit-notify');
   const statuslinePath = path.join(__dirname, '..', 'bin', 'orbit-statusline');
-  const settings = buildInlineSettings({ notifyPath, statuslinePath });
+  const settings = buildInlineSettings({ notifyPath, statuslinePath, port });
 
   const url = `http://localhost:${port}/`;
   // Print the URL unconditionally (before attempting to open a browser) so

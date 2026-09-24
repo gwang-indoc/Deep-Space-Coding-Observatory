@@ -54,6 +54,8 @@ test('spawns claude with inline --settings, forwards args, and propagates exit c
 
     const portInUrl = openedUrl.match(/:(\d+)\//)[1];
     assert.equal(recorded.port, portInUrl);
+    assert.ok(settings.hooks.Stop[0].hooks[0].command.startsWith(`ORBIT_PORT=${portInUrl} `));
+    assert.ok(settings.statusLine.command.startsWith(`ORBIT_PORT=${portInUrl} `));
   } finally {
     fs.rmSync(outFile, { force: true });
     fs.rmSync(fixtureScript, { force: true });

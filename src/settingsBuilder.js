@@ -6,13 +6,16 @@ function shellQuote(path) {
   return `'${path.replace(/'/g, `'\\''`)}'`;
 }
 
-function commandHook(path) {
-  return { type: 'command', command: shellQuote(path) };
+// Claude Code can relaunch a session on its own (a fork, a background resume)
+// with the same --settings but without orbit's environment, so each command
+// carries the dashboard port itself instead of relying on an inherited ORBIT_PORT.
+function commandHook(path, port) {
+  return { type: 'command', command: `ORBIT_PORT=${Number(port)} ${shellQuote(path)}` };
 }
 
-export function buildInlineSettings({ notifyPath, statuslinePath }) {
-  const matched = { matcher: '*', hooks: [commandHook(notifyPath)] };
-  const unmatched = { hooks: [commandHook(notifyPath)] };
+export function buildInlineSettings({ notifyPath, statuslinePath, port }) {
+  const matched = { matcher: '*', hooks: [commandHook(notifyPath, port)] };
+  const unmatched = { hooks: [commandHook(notifyPath, port)] };
 
   return JSON.stringify({
     hooks: {
@@ -22,6 +25,6 @@ export function buildInlineSettings({ notifyPath, statuslinePath }) {
       Notification: [unmatched],
       Stop: [unmatched],
     },
-    statusLine: commandHook(statuslinePath),
+    statusLine: commandHook(statuslinePath, port),
   });
 }
