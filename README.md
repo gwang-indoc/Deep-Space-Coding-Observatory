@@ -23,7 +23,7 @@ The longer it works, the more of the universe opens up: from Earth to a black ho
 
 ---
 
-![Orbit two hours into a session: all eight planets lit, a black hole and a supernova remnant beyond the asteroid belt, a comet swinging past the sun, and the green/red test ring](docs/images/orbit-dashboard.png)
+![Orbit two hours into a session: the whole solar system lit from Mercury to Neptune, a black hole and a supernova remnant beyond the asteroid belt, a comet streaking in, and the green/red test ring](docs/images/orbit-dashboard.png)
 
 Orbit wraps the `claude` CLI and turns the session into a real-time 3D
 deep-space dashboard in your browser. You can tell at a glance what Claude is
@@ -97,6 +97,7 @@ background subagent spends working does.
 | 12 min | 🩵 Uranus |
 | 16 min | 🔵 Neptune |
 | 20 min | 🌙 The Moon |
+| 25 min | 🪨 Mercury |
 
 > [!NOTE]
 > **Subagents boost planets.** Each running subagent (`Agent` / `Task`) takes
@@ -111,7 +112,7 @@ When a new wonder unlocks, a toast announces it. Distant wonders are spread
 around the sky, so the slowly turning camera brings them into view one at a
 time.
 
-![A pulsar sweeping its beams, the distant gas giant with its moons, and the edge of the spiral galaxy](docs/images/orbit-wonders.png)
+![A pulsar sweeping its beams, a comet at the edge of the spiral galaxy, and Saturn and Uranus swinging past the camera](docs/images/orbit-wonders.png)
 
 | Working time | Wonder | What appears |
 |---:|---|---|

@@ -134,6 +134,30 @@ function paintBlotches(ctx, width, height, rand, colors, count, minR, maxR, alph
 const W = 512;
 const H = 256;
 
+// Airless rocky body: mottled base, then craters with a dark floor and a light rim.
+function paintCratered(base, tones, rand, craters) {
+  const canvas = makeCanvas(W, H);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, W, H);
+  paintBlotches(ctx, W, H, rand, tones, 160, 4, 30, 0.4);
+  for (let i = 0; i < craters; i += 1) {
+    const x = rand() * W;
+    const y = rand() * H;
+    const r = 1.5 + rand() * 7;
+    ctx.fillStyle = 'rgba(40,38,36,0.45)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(220,215,208,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x - 0.5, y - 0.5, r, Math.PI * 0.9, Math.PI * 1.9);
+    ctx.stroke();
+  }
+  return toTexture(canvas);
+}
+
 const BUILDERS = {
   jupiter: () => {
     const canvas = makeCanvas(W, H);
@@ -224,33 +248,12 @@ const BUILDERS = {
     paintBands(ctx, W, H, ['#e8c98a', '#d9b06a', '#f2dcaa', '#caa062'], seededRandom(71), { turbulence: 0.05, streaks: 200 });
     return toTexture(canvas);
   },
-  moon: () => {
-    const canvas = makeCanvas(W, H);
-    const ctx = canvas.getContext('2d');
-    const rand = seededRandom(83);
-    ctx.fillStyle = '#8e8a86';
-    ctx.fillRect(0, 0, W, H);
-    paintBlotches(ctx, W, H, rand, ['#5e5b58', '#a9a5a0'], 160, 4, 30, 0.4);
-    // Craters: dark floor with a light rim.
-    for (let i = 0; i < 90; i += 1) {
-      const x = rand() * W;
-      const y = rand() * H;
-      const r = 1.5 + rand() * 7;
-      ctx.fillStyle = 'rgba(40,38,36,0.45)';
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(220,215,208,0.35)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(x - 0.5, y - 0.5, r, Math.PI * 0.9, Math.PI * 1.9);
-      ctx.stroke();
-    }
-    return toTexture(canvas);
-  },
+  moon: () => paintCratered('#8e8a86', ['#5e5b58', '#a9a5a0'], seededRandom(83), 90),
+  // Mercury: darker, warmer grey than the Moon and more heavily cratered.
+  mercury: () => paintCratered('#857a70', ['#5a524b', '#a39688'], seededRandom(89), 130),
 };
 
-export const PLANET_KINDS = ['earth', 'mars', 'jupiter', 'saturn', 'neptune', 'venus', 'uranus', 'moon'];
+export const PLANET_KINDS = ['earth', 'mars', 'jupiter', 'saturn', 'neptune', 'venus', 'uranus', 'moon', 'mercury'];
 
 export function planetTexture(kind) {
   return cached(`planet:${kind}`, BUILDERS[kind] ?? BUILDERS.moon);

@@ -4,12 +4,12 @@ import { PLANET_UNLOCKS, unlockedPlanetCount, boostedPlanets } from '../src/stat
 const MIN = 60 * 1000;
 
 describe('planet unlocks', () => {
-  it('lists the eight planets in unlock order, starting with one already there', () => {
-    expect(PLANET_UNLOCKS).toHaveLength(8);
+  it('lists the nine bodies in unlock order, starting with one already there', () => {
+    expect(PLANET_UNLOCKS).toHaveLength(9);
     const minutes = PLANET_UNLOCKS.map((p) => p.minutes);
     expect(minutes).toEqual([...minutes].sort((a, b) => a - b));
     expect(minutes[0]).toBe(0);
-    expect(new Set(PLANET_UNLOCKS.map((p) => p.kind)).size).toBe(8);
+    expect(new Set(PLANET_UNLOCKS.map((p) => p.kind)).size).toBe(9);
   });
 
   it('shows the first planet from the very start', () => {
@@ -22,10 +22,10 @@ describe('planet unlocks', () => {
     expect(unlockedPlanetCount(second.minutes * MIN)).toBe(2);
   });
 
-  it('lights all eight once the last threshold passes', () => {
+  it('lights all nine once the last threshold passes', () => {
     const last = PLANET_UNLOCKS[PLANET_UNLOCKS.length - 1];
-    expect(unlockedPlanetCount(last.minutes * MIN)).toBe(8);
-    expect(unlockedPlanetCount(last.minutes * MIN * 10)).toBe(8);
+    expect(unlockedPlanetCount(last.minutes * MIN)).toBe(9);
+    expect(unlockedPlanetCount(last.minutes * MIN * 10)).toBe(9);
   });
 });
 

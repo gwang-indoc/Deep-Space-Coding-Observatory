@@ -13,20 +13,20 @@ const BOOST_COLOR = new THREE.Color('#5fb0ff');
 const CALM_SPEED = 0.12;
 const BOOST_SPEED = 0.5;
 
+// `orbit` is the track radius, in real order from the sun: packed close for the
+// rocky inner planets and opening up for the giants, with room for Earth's
+// companion moon and Saturn's rings, and staying inside the asteroid belt.
 const PLANET_SPECS = {
-  earth: { size: 0.3, atmosphere: '#7fb8ff', tilt: 0.41, moon: true },
-  mars: { size: 0.24, atmosphere: '#ff9a6b', tilt: 0.44 },
-  jupiter: { size: 0.55, atmosphere: '#e8c9a0', tilt: 0.05 },
-  saturn: { size: 0.45, atmosphere: '#f0dcae', tilt: 0.47, rings: true },
-  neptune: { size: 0.34, atmosphere: '#6f9bff', tilt: 0.49 },
-  venus: { size: 0.28, atmosphere: '#ffe0a0', tilt: 0.05 },
-  uranus: { size: 0.32, atmosphere: '#b8f0f2', tilt: 1.7, rings: 'faint' },
-  moon: { size: 0.2, atmosphere: '#cccccc', tilt: 0.1 },
+  mercury: { size: 0.18, atmosphere: '#c8b8a8', tilt: 0.03, orbit: 2.55 },
+  venus: { size: 0.28, atmosphere: '#ffe0a0', tilt: 0.05, orbit: 3.35 },
+  earth: { size: 0.3, atmosphere: '#7fb8ff', tilt: 0.41, moon: true, orbit: 4.15 },
+  moon: { size: 0.14, atmosphere: '#cccccc', tilt: 0.1, orbit: 5.0 },
+  mars: { size: 0.24, atmosphere: '#ff9a6b', tilt: 0.44, orbit: 5.8 },
+  jupiter: { size: 0.55, atmosphere: '#e8c9a0', tilt: 0.05, orbit: 7.1 },
+  saturn: { size: 0.45, atmosphere: '#f0dcae', tilt: 0.47, rings: true, orbit: 8.8 },
+  uranus: { size: 0.32, atmosphere: '#b8f0f2', tilt: 1.7, rings: 'faint', orbit: 10.2 },
+  neptune: { size: 0.34, atmosphere: '#6f9bff', tilt: 0.49, orbit: 11.5 },
 };
-
-function orbitRadius(index) {
-  return 3 + index * 1.25;
-}
 
 function OrbitTrack({ radius, boost, throttle }) {
   const materialRef = useRef(null);
@@ -102,7 +102,7 @@ function Planet({ index, boosted, running }) {
   const materialRef = useRef(null);
   const { kind } = PLANET_UNLOCKS[index];
   const spec = PLANET_SPECS[kind];
-  const radius = orbitRadius(index);
+  const radius = spec.orbit;
   const texture = useMemo(() => planetTexture(kind), [kind]);
   const glow = useMemo(() => glowTexture(), []);
   // Orbital angle and spin accumulate so the system can glide to a halt when
