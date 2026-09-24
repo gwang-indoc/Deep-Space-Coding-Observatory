@@ -76,6 +76,57 @@ test('PreToolUse TodoWrite maps to planet_sync with normalized todos', () => {
   ]);
 });
 
+test('PreToolUse Agent (and legacy Task) maps to agent_start keyed by tool_use_id', () => {
+  for (const tool_name of ['Agent', 'Task']) {
+    const event = mapHookEvent({
+      hook_event_name: 'PreToolUse',
+      tool_name,
+      tool_input: { description: 'Count exports', prompt: 'long prompt', subagent_type: 'Explore' },
+      tool_use_id: 'toolu_1',
+    });
+    assert.deepEqual(event, { type: 'agent_start', ts: event.ts, payload: { id: 'toolu_1', text: 'Count exports' } });
+  }
+});
+
+test('PostToolUse Agent for a foreground subagent maps to agent_end', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Agent',
+    tool_input: { description: 'Count exports' },
+    tool_use_id: 'toolu_1',
+    tool_response: { status: 'completed', content: [] },
+  });
+  assert.deepEqual(event, { type: 'agent_end', ts: event.ts, payload: { id: 'toolu_1', status: 'completed' } });
+});
+
+test('PostToolUse Agent for a background launch returns null (it is still running)', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Agent',
+    tool_input: { description: 'Count exports', run_in_background: true },
+    tool_use_id: 'toolu_1',
+    tool_response: { isAsync: true, status: 'async_launched', agentId: 'a1' },
+  });
+  assert.equal(event, null);
+});
+
+test('UserPromptSubmit carrying a background task-notification maps to agent_end that resumes the mission', () => {
+  const prompt = [
+    '<task-notification>',
+    '<task-id>a1</task-id>',
+    '<tool-use-id>toolu_1</tool-use-id>',
+    '<status>completed</status>',
+    '<summary>Agent "Count exports" finished</summary>',
+    '</task-notification>',
+  ].join('\n');
+  const event = mapHookEvent({ hook_event_name: 'UserPromptSubmit', prompt });
+  assert.deepEqual(event, {
+    type: 'agent_end',
+    ts: event.ts,
+    payload: { id: 'toolu_1', status: 'completed', resumesMission: true },
+  });
+});
+
 test('PreToolUse for an unmapped tool returns null', () => {
   const event = mapHookEvent({ hook_event_name: 'PreToolUse', tool_name: 'WebFetch', tool_input: {} });
   assert.equal(event, null);

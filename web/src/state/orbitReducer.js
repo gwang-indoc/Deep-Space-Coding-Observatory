@@ -39,6 +39,18 @@ function upsertSatellite(satellites, file, ts) {
   return next;
 }
 
+// Mirrors the server's subagent planet rules. Both return the same array when
+// nothing changes.
+function startAgentPlanet(todos, { id, text }) {
+  if (todos.some((t) => t.id === id)) return todos;
+  return [...todos, { id, text: text ?? '', status: 'in_progress' }];
+}
+
+function endAgentPlanet(todos, { id }) {
+  if (!todos.some((t) => t.id === id && t.status !== 'completed')) return todos;
+  return todos.map((t) => (t.id === id ? { ...t, status: 'completed' } : t));
+}
+
 export function applySnapshot(state, payload) {
   const next = {
     ...state,
@@ -65,13 +77,34 @@ export function applyOrbitEvent(state, event) {
       return applySnapshot(baseState, event.payload);
 
     case 'mission_start':
-      return { ...baseState, missionActive: true, waitingSince, waitingMessage, lastCompletedAt: null };
+      return {
+        ...baseState,
+        todos: baseState.todos.filter((t) => t.status !== 'completed'),
+        missionActive: true,
+        waitingSince,
+        waitingMessage,
+        lastCompletedAt: null,
+      };
+
 
     case 'mission_complete':
       return { ...baseState, missionActive: false, waitingSince, waitingMessage, lastCompletedAt: event.ts };
 
     case 'planet_sync':
       return { ...baseState, todos: event.payload.todos, waitingSince, waitingMessage };
+
+    case 'agent_start':
+      return { ...baseState, todos: startAgentPlanet(baseState.todos, event.payload), waitingSince, waitingMessage };
+
+    case 'agent_end':
+      return {
+        ...baseState,
+        todos: endAgentPlanet(baseState.todos, event.payload),
+        missionActive: baseState.missionActive || Boolean(event.payload.resumesMission),
+        waitingSince,
+        waitingMessage,
+      };
+
 
     case 'file_read':
     case 'file_edit':

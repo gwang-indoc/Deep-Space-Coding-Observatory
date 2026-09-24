@@ -47,6 +47,8 @@ const KNOWN_EVENT_TYPES = new Set([
   'run_tests',
   'test_result',
   'planet_sync',
+  'agent_start',
+  'agent_end',
   'waiting',
   'mission_start',
   'mission_complete',

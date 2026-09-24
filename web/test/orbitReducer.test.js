@@ -65,6 +65,39 @@ describe('applyOrbitEvent: planet_sync', () => {
   });
 });
 
+describe('applyOrbitEvent: subagent planets (agent_start / agent_end)', () => {
+  it('agent_start adds an in-progress planet and agent_end completes it', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'agent_start', ts: 1, payload: { id: 'a', text: 'Task A' } });
+    expect(state.todos).toEqual([{ id: 'a', text: 'Task A', status: 'in_progress' }]);
+    state = applyOrbitEvent(state, { type: 'agent_end', ts: 2, payload: { id: 'a', status: 'completed' } });
+    expect(state.todos).toEqual([{ id: 'a', text: 'Task A', status: 'completed' }]);
+  });
+
+  it('agent_end for an unknown id leaves the planets unchanged', () => {
+    const start = applyOrbitEvent(createInitialOrbitState(), { type: 'agent_start', ts: 1, payload: { id: 'a', text: 'A' } });
+    const state = applyOrbitEvent(start, { type: 'agent_end', ts: 2, payload: { id: 'zzz', status: 'completed' } });
+    expect(state.todos).toBe(start.todos);
+  });
+
+  it('agent_end from a background notification also resumes the mission', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), {
+      type: 'agent_end',
+      ts: 2,
+      payload: { id: 'a', status: 'completed', resumesMission: true },
+    });
+    expect(state.missionActive).toBe(true);
+  });
+
+  it('mission_start drops finished planets but keeps ones still running', () => {
+    let state = createInitialOrbitState();
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 1, payload: { id: 'a', text: 'A' } });
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 2, payload: { id: 'b', text: 'B' } });
+    state = applyOrbitEvent(state, { type: 'agent_end', ts: 3, payload: { id: 'a', status: 'completed' } });
+    state = applyOrbitEvent(state, { type: 'mission_start', ts: 4, payload: {} });
+    expect(state.todos).toEqual([{ id: 'b', text: 'B', status: 'in_progress' }]);
+  });
+});
+
 describe('applyOrbitEvent: satellites (file_read / file_edit)', () => {
   it('adds a new satellite for a first-time file', () => {
     const state = applyOrbitEvent(createInitialOrbitState(), {

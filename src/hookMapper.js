@@ -37,12 +37,30 @@ function parseTestResult(resultText) {
   return /fail/i.test(text) ? { passed: 0, failed: 1 } : { passed: 1, failed: 0 };
 }
 
+// Claude Code 2.1+ has no todo tool, so subagents stand in for planets. The
+// subagent tool is `Agent`; older builds call it `Task`.
+const SUBAGENT_TOOLS = new Set(['Agent', 'Task']);
+
+// A background subagent reports completion by injecting a user turn such as
+// `<task-notification><tool-use-id>toolu_…</tool-use-id><status>completed</status>…`.
+function parseTaskNotification(prompt) {
+  if (typeof prompt !== 'string' || !prompt.startsWith('<task-notification>')) return null;
+  const id = prompt.match(/<tool-use-id>([^<]+)<\/tool-use-id>/)?.[1];
+  if (!id) return null;
+  const status = prompt.match(/<status>([^<]+)<\/status>/)?.[1] ?? 'completed';
+  return { id, status };
+}
+
 export function mapHookEvent(raw) {
   const ts = Date.now();
 
   switch (raw?.hook_event_name) {
-    case 'UserPromptSubmit':
-      return { type: 'mission_start', ts, payload: { prompt: raw.prompt ?? raw.user_prompt ?? '' } };
+    case 'UserPromptSubmit': {
+      const prompt = raw.prompt ?? raw.user_prompt ?? '';
+      const notification = parseTaskNotification(prompt);
+      if (notification) return { type: 'agent_end', ts, payload: { ...notification, resumesMission: true } };
+      return { type: 'mission_start', ts, payload: { prompt } };
+    }
 
     case 'PreToolUse': {
       const toolName = raw.tool_name;
@@ -60,6 +78,9 @@ export function mapHookEvent(raw) {
       if (toolName === 'Bash') {
         return { type: classifyBash(toolInput.command), ts, payload: { command: toolInput.command ?? '' } };
       }
+      if (SUBAGENT_TOOLS.has(toolName) && raw.tool_use_id) {
+        return { type: 'agent_start', ts, payload: { id: raw.tool_use_id, text: toolInput.description ?? '' } };
+      }
       if (toolName === 'TodoWrite') {
         return { type: 'planet_sync', ts, payload: { todos: normalizeTodos(toolInput.todos) } };
       }
@@ -69,6 +90,11 @@ export function mapHookEvent(raw) {
     case 'PostToolUse': {
       const toolName = raw.tool_name;
       const toolInput = raw.tool_input ?? {};
+      if (SUBAGENT_TOOLS.has(toolName) && raw.tool_use_id) {
+        // A background launch returns at once; its completion arrives later as a task-notification.
+        if (raw.tool_response?.status === 'async_launched') return null;
+        return { type: 'agent_end', ts, payload: { id: raw.tool_use_id, status: 'completed' } };
+      }
       if (toolName === 'Bash' && classifyBash(toolInput.command) === 'run_tests') {
         return { type: 'test_result', ts, payload: parseTestResult(extractBashResultText(raw)) };
       }

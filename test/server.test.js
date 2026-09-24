@@ -118,6 +118,33 @@ test('any activity event clears the waiting state, but a status_update does not'
   await close();
 });
 
+test('subagent events become planets, and a new prompt clears only the finished ones', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'mission_start', ts: 1000, payload: { prompt: 'go' } });
+  await postEvent(port, { type: 'agent_start', ts: 1100, payload: { id: 'a', text: 'Task A' } });
+  await postEvent(port, { type: 'agent_start', ts: 1200, payload: { id: 'b', text: 'Task B' } });
+  await postEvent(port, { type: 'agent_end', ts: 1300, payload: { id: 'a', status: 'completed' } });
+  let [snapshot] = await collectSseEvents(port, 1);
+  assert.deepEqual(snapshot.payload.todos, [
+    { id: 'a', text: 'Task A', status: 'completed' },
+    { id: 'b', text: 'Task B', status: 'in_progress' },
+  ]);
+
+  await postEvent(port, { type: 'mission_complete', ts: 1400, payload: {} });
+  await postEvent(port, { type: 'agent_end', ts: 1500, payload: { id: 'b', status: 'completed', resumesMission: true } });
+  [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.missionActive, true);
+  assert.equal(snapshot.payload.todos[1].status, 'completed');
+
+  await postEvent(port, { type: 'agent_start', ts: 1600, payload: { id: 'c', text: 'Task C' } });
+  await postEvent(port, { type: 'mission_start', ts: 1700, payload: { prompt: 'next' } });
+  [snapshot] = await collectSseEvents(port, 1);
+  assert.deepEqual(snapshot.payload.todos, [{ id: 'c', text: 'Task C', status: 'in_progress' }]);
+
+  await close();
+});
+
 test('rejects a POST /event with an unknown type', async () => {
   const { port, close } = await createOrbitServer(0);
   const status = await postEvent(port, { type: 'not_a_real_type', ts: Date.now(), payload: {} });
