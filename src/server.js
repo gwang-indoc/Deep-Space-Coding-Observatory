@@ -55,7 +55,9 @@ const KNOWN_EVENT_TYPES = new Set([
   'status_update',
 ]);
 
-export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR } = {}) {
+const NO_SLEEP_GUARD = { update() {}, release() {} };
+
+export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR, sleepGuard = NO_SLEEP_GUARD } = {}) {
   const state = createInitialState();
   const clients = new Set();
 
@@ -84,7 +86,11 @@ export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR } = {}) {
       });
       res.write(`data: ${JSON.stringify(snapshotEvent(state))}\n\n`);
       clients.add(res);
-      req.on('close', () => clients.delete(res));
+      sleepGuard.update(clients.size);
+      req.on('close', () => {
+        clients.delete(res);
+        sleepGuard.update(clients.size);
+      });
       return;
     }
 
@@ -135,6 +141,7 @@ export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR } = {}) {
               res.end();
             }
             clients.clear();
+            sleepGuard.release();
             server.close(r);
             if (typeof server.closeAllConnections === 'function') {
               server.closeAllConnections();

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findFreePort } from './portFinder.js';
 import { createOrbitServer } from './server.js';
+import { createSleepGuard } from './sleepGuard.js';
 import { buildInlineSettings } from './settingsBuilder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,7 +39,7 @@ export async function runOrbit(argv, { claudeBin = 'claude', openBrowserFn = def
   const claudeArgs = argv.slice(1);
 
   const port = await findFreePort(DEFAULT_PORT);
-  const { close } = await createOrbitServer(port);
+  const { close } = await createOrbitServer(port, { sleepGuard: createSleepGuard() });
 
   const notifyPath = path.join(__dirname, '..', 'bin', 'orbit-notify');
   const statuslinePath = path.join(__dirname, '..', 'bin', 'orbit-statusline');

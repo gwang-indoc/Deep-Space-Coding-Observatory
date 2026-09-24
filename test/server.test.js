@@ -252,3 +252,17 @@ test('GET / blocks a sibling-directory traversal attempt outside webDistDir', as
     await fsPromises.rm(tmpRoot, { recursive: true, force: true });
   }
 });
+
+test('tells the sleep guard how many dashboards are connected', async () => {
+  const counts = [];
+  let released = false;
+  const sleepGuard = { update: (n) => counts.push(n), release: () => { released = true; } };
+  const { port, close } = await createOrbitServer(0, { sleepGuard });
+
+  await collectSseEvents(port, 1); // connects, reads the snapshot, disconnects
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(counts, [1, 0]);
+
+  await close();
+  assert.equal(released, true);
+});
