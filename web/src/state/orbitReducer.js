@@ -20,7 +20,20 @@ export function createInitialOrbitState() {
     waitingSince: null,
     waitingMessage: null,
     lastCompletedAt: null,
+    activeMs: 0,
+    activeSince: null,
   };
+}
+
+// Mirrors the server: accumulate time only while a mission runs and Claude is
+// not waiting on the user. Returns the same object when nothing changes.
+function trackActiveTime(state, ts) {
+  const running = state.missionActive && state.waitingSince == null;
+  if (running && state.activeSince == null) return { ...state, activeSince: ts };
+  if (!running && state.activeSince != null) {
+    return { ...state, activeMs: state.activeMs + Math.max(0, ts - state.activeSince), activeSince: null };
+  }
+  return state;
 }
 
 function upsertSatellite(satellites, file, ts) {
@@ -62,10 +75,19 @@ export function applySnapshot(state, payload) {
     next.waitingSince = payload.waiting.since;
     next.waitingMessage = payload.waiting.message || null;
   }
+  if (typeof payload?.activeMs === 'number') {
+    next.activeMs = payload.activeMs;
+    next.activeSince = payload.activeSince ?? null;
+  }
   return next;
 }
 
 export function applyOrbitEvent(state, event) {
+  const next = reduceOrbitEvent(state, event);
+  return event.type === 'snapshot' ? next : trackActiveTime(next, event.ts);
+}
+
+function reduceOrbitEvent(state, event) {
   const ships = pruneExpired(state.ships, SHIP_TTL_MS, event.ts);
   const radarPings = pruneExpired(state.radarPings, RADAR_TTL_MS, event.ts);
   const baseState = ships === state.ships && radarPings === state.radarPings ? state : { ...state, ships, radarPings };
@@ -86,7 +108,6 @@ export function applyOrbitEvent(state, event) {
         lastCompletedAt: null,
       };
 
-
     case 'mission_complete':
       return { ...baseState, missionActive: false, waitingSince, waitingMessage, lastCompletedAt: event.ts };
 
@@ -104,7 +125,6 @@ export function applyOrbitEvent(state, event) {
         waitingSince,
         waitingMessage,
       };
-
 
     case 'file_read':
     case 'file_edit':
@@ -153,6 +173,10 @@ export function applyOrbitEvent(state, event) {
     default:
       return baseState;
   }
+}
+
+export function selectActiveMs(state, nowMs) {
+  return state.activeMs + (state.activeSince != null ? Math.max(0, nowMs - state.activeSince) : 0);
 }
 
 export function selectActiveShips(state, nowMs) {

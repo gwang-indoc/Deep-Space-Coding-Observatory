@@ -118,6 +118,25 @@ test('any activity event clears the waiting state, but a status_update does not'
   await close();
 });
 
+test('a snapshot reports accumulated active time, excluding time spent waiting', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'mission_start', ts: 1000, payload: {} });
+  await postEvent(port, { type: 'file_read', ts: 2000, payload: { file: 'a.ts' } });
+  let [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.activeMs, 0);
+  assert.equal(snapshot.payload.activeSince, 1000);
+
+  await postEvent(port, { type: 'waiting', ts: 5000, payload: { message: 'x' } });
+  await postEvent(port, { type: 'file_read', ts: 8000, payload: { file: 'b.ts' } });
+  await postEvent(port, { type: 'mission_complete', ts: 10000, payload: {} });
+  [snapshot] = await collectSseEvents(port, 1);
+  assert.equal(snapshot.payload.activeMs, 6000);
+  assert.equal(snapshot.payload.activeSince, null);
+
+  await close();
+});
+
 test('subagent events become planets, and a new prompt clears only the finished ones', async () => {
   const { port, close } = await createOrbitServer(0);
 

@@ -7,6 +7,7 @@ import {
   selectActiveRadarPings,
   selectNebulaVisible,
   selectOrbitMode,
+  selectActiveMs,
   selectMissionCompleteFlashVisible,
   SHIP_TTL_MS,
   RADAR_TTL_MS,
@@ -25,6 +26,8 @@ describe('createInitialOrbitState', () => {
       waitingSince: null,
       waitingMessage: null,
       lastCompletedAt: null,
+      activeMs: 0,
+      activeSince: null,
     });
   });
 });
@@ -317,5 +320,26 @@ describe('selectOrbitMode', () => {
     expect(selectOrbitMode(state, 2000)).toBe('waiting');
     expect(state.waitingSince).toBe(1500);
     expect(state.waitingMessage).toBe('hi');
+  });
+});
+
+describe('selectActiveMs', () => {
+  it('counts running time and pauses while waiting or idle', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'mission_start', ts: 1000, payload: {} });
+    expect(selectActiveMs(state, 4000)).toBe(3000);
+    state = applyOrbitEvent(state, { type: 'waiting', ts: 5000, payload: {} });
+    expect(selectActiveMs(state, 9000)).toBe(4000);
+    state = applyOrbitEvent(state, { type: 'file_read', ts: 8000, payload: { file: 'a' } });
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 10000, payload: {} });
+    expect(selectActiveMs(state, 99999)).toBe(6000);
+  });
+
+  it('hydrates from a snapshot, including a still-running span', () => {
+    const state = applyOrbitEvent(createInitialOrbitState(), {
+      type: 'snapshot',
+      ts: 5000,
+      payload: { todos: [], missionActive: true, activeMs: 60000, activeSince: 4000 },
+    });
+    expect(selectActiveMs(state, 5000)).toBe(61000);
   });
 });

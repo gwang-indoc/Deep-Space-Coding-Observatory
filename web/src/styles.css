@@ -204,9 +204,72 @@ html, body {
   color: #cbd5f5;
 }
 
+/* ---- Session uptime and unlocked celestial bodies ---- */
+
+.uptime-hud {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(8, 12, 24, 0.72);
+  border: 1px solid rgba(140, 160, 200, 0.25);
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  text-align: right;
+  backdrop-filter: blur(6px);
+}
+
+.uptime-hud__elapsed {
+  color: #cbd5f5;
+  font-weight: 600;
+}
+
+.uptime-hud__next {
+  margin-top: 2px;
+  color: #8ea2c6;
+  font-size: 11px;
+}
+
+.milestone-toast-slot {
+  position: absolute;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.milestone-toast {
+  padding: 10px 22px;
+  border-radius: 10px;
+  background: rgba(10, 16, 36, 0.82);
+  border: 1px solid rgba(143, 196, 255, 0.6);
+  text-align: center;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  box-shadow: 0 0 28px rgba(110, 170, 255, 0.45);
+  animation: milestone-toast-in 5s ease forwards;
+}
+
+.milestone-toast__kicker {
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: #8fc4ff;
+}
+
+.milestone-toast__label {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #e8f4ff;
+}
+
+@keyframes milestone-toast-in {
+  0% { opacity: 0; transform: translateY(12px); }
+  8%, 85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orbit-app[data-mode='waiting'] .mode-frame,
-  .mode-banner--waiting {
+  .mode-banner--waiting,
+  .milestone-toast {
     animation: none;
   }
 }

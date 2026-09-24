@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { OrbitProvider, useOrbit } from './state/OrbitProvider.jsx';
-import { selectOrbitMode } from './state/orbitReducer.js';
+import { selectActiveMs, selectOrbitMode } from './state/orbitReducer.js';
+import { MILESTONES, unlockedMilestones } from './state/milestones.js';
 import Scene from './scene/Scene.jsx';
 import CentralStar from './scene/CentralStar.jsx';
 import IdleUniverse from './scene/IdleUniverse.jsx';
@@ -10,10 +11,14 @@ import Ship from './scene/Ship.jsx';
 import RadarPing from './scene/RadarPing.jsx';
 import Nebula from './scene/Nebula.jsx';
 import Comets from './scene/Comets.jsx';
+import Wonders from './scene/wonders/Wonders.jsx';
 import StatusHud from './hud/StatusHud.jsx';
 import StepList from './hud/StepList.jsx';
 import ModeBanner from './hud/ModeBanner.jsx';
 import { useTabTitle } from './hud/useTabTitle.js';
+import UptimeHud from './hud/UptimeHud.jsx';
+import MilestoneToast from './hud/MilestoneToast.jsx';
+import { useMilestoneToast } from './hud/useMilestoneToast.js';
 
 // Mode depends on time (the completion flash expires), so re-evaluate it periodically.
 function useNow(intervalMs) {
@@ -30,6 +35,12 @@ function OrbitDashboard() {
   const now = useNow(500);
   const mode = selectOrbitMode(orbitState, now);
   useTabTitle(mode);
+  const activeMs = selectActiveMs(orbitState, now);
+  const unlockedCount = unlockedMilestones(activeMs).length;
+  // Milestones are ordered, so the unlocked set is a prefix; keying on its length
+  // keeps the array stable between ticks so the scene and toast don't churn.
+  const unlocked = useMemo(() => MILESTONES.slice(0, unlockedCount), [unlockedCount]);
+  const toast = useMilestoneToast(unlocked);
 
   return (
     <div data-testid="orbit-app" data-mode={mode} className="orbit-app" style={{ position: 'relative', width: '100vw', height: '100vh' }}>
@@ -38,6 +49,7 @@ function OrbitDashboard() {
           <IdleUniverse />
           <Nebula waitingSince={orbitState.waitingSince} />
           <Comets />
+          <Wonders unlocked={unlocked} />
           <CentralStar mode={mode} lastCompletedAt={orbitState.lastCompletedAt} />
           <PlanetLayer todos={orbitState.todos} running={mode === 'active'} />
           <Satellites satellites={orbitState.satellites} />
@@ -55,6 +67,12 @@ function OrbitDashboard() {
         </div>
         <div style={{ position: 'absolute', bottom: 16, left: 16, pointerEvents: 'auto' }}>
           <StepList activeStep={activeStep} recentLog={recentLog} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 16, right: 16, pointerEvents: 'auto' }}>
+          <UptimeHud activeMs={activeMs} />
+        </div>
+        <div className="milestone-toast-slot">
+          <MilestoneToast milestone={toast} />
         </div>
       </div>
     </div>

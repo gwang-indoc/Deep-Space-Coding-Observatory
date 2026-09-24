@@ -319,3 +319,54 @@ export function nebulaTexture(seed, colors) {
     return toTexture(canvas, { wrap: false });
   });
 }
+
+// Supernova remnant: a ragged, filamentary shell of glowing gas (red hydrogen,
+// teal oxygen, gold sulphur) around a faint blue interior.
+export function remnantTexture() {
+  return cached('remnant', () => {
+    const size = 512;
+    const canvas = makeCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    const rand = seededRandom(307);
+    const c = size / 2;
+    ctx.globalCompositeOperation = 'lighter';
+    paintBlotches(ctx, size, size, rand, ['#1a3a6a'], 40, 30, 90, 0.05);
+    // A soft, diffuse glow band under the filaments.
+    const band = ctx.createRadialGradient(c, c, size * 0.2, c, c, size * 0.46);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(0.55, 'rgba(200,70,60,0.10)');
+    band.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 0, size, size);
+    const colors = ['#e0503a', '#d86a58', '#4fb8b0', '#e0b060', '#c85070'];
+    for (let i = 0; i < 2600; i += 1) {
+      const angle = rand() * Math.PI * 2;
+      const wobble = Math.sin(angle * 5 + 1.3) * 10 + Math.sin(angle * 11) * 5;
+      const dist = size * 0.32 + wobble + (rand() - 0.5) * (rand() < 0.3 ? 70 : 24);
+      const x = c + Math.cos(angle) * dist;
+      const y = c + Math.sin(angle) * dist;
+      const r = 2 + rand() * 7;
+      const color = new THREE.Color(colors[Math.floor(rand() * colors.length)]);
+      const rgb = `${Math.round(color.r * 255)},${Math.round(color.g * 255)},${Math.round(color.b * 255)}`;
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
+      gradient.addColorStop(0, `rgba(${rgb},0.11)`);
+      gradient.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // Faint radial filaments reaching outward from the shell.
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 90; i += 1) {
+      const angle = rand() * Math.PI * 2;
+      const start = size * (0.3 + rand() * 0.05);
+      const end = start + size * (0.03 + rand() * 0.08);
+      ctx.strokeStyle = `rgba(255,${Math.round(110 + rand() * 90)},90,0.05)`;
+      ctx.lineWidth = 1 + rand() * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(c + Math.cos(angle) * start, c + Math.sin(angle) * start);
+      ctx.lineTo(c + Math.cos(angle) * end, c + Math.sin(angle) * end);
+      ctx.stroke();
+    }
+    return toTexture(canvas, { wrap: false });
+  });
+}

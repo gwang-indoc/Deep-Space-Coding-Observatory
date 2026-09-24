@@ -5,7 +5,21 @@ export function createInitialState() {
     missionActive: false,
     lastStatus: null,
     waiting: null,
+    // Time Claude has spent actually working this session (not idle, not
+    // waiting on the user). The dashboard unlocks extra scenery as it grows.
+    activeMs: 0,
+    activeSince: null,
   };
+}
+
+function trackActiveTime(state, ts) {
+  const running = state.missionActive && !state.waiting;
+  if (running && state.activeSince == null) {
+    state.activeSince = ts;
+  } else if (!running && state.activeSince != null) {
+    state.activeMs += Math.max(0, ts - state.activeSince);
+    state.activeSince = null;
+  }
 }
 
 // Events that are not evidence Claude has resumed work, so they leave a pending
@@ -54,6 +68,7 @@ export function applyEvent(state, event) {
     default:
       break;
   }
+  trackActiveTime(state, event.ts ?? Date.now());
   return state;
 }
 
@@ -66,6 +81,8 @@ export function snapshotEvent(state) {
       missionActive: state.missionActive,
       lastStatus: state.lastStatus,
       waiting: state.waiting,
+      activeMs: state.activeMs,
+      activeSince: state.activeSince,
     },
   };
 }
