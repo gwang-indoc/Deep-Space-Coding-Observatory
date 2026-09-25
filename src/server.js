@@ -61,6 +61,17 @@ const NO_SLEEP_GUARD = { update() {}, release() {} };
 
 const TRANSCRIPT_LIMIT = 300;
 
+// The dashboard streams the whole session (prompts, command output, diffs), so a
+// web page that rebinds its own hostname to 127.0.0.1 must not be able to read
+// it. Only loopback host names are served, on any port so the Vite dev proxy
+// (which forwards Host: localhost:5173) keeps working.
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function isLoopbackHost(hostHeader) {
+  if (typeof hostHeader !== 'string') return false;
+  return LOOPBACK_HOSTNAMES.has(hostHeader.replace(/:\d+$/, '').toLowerCase());
+}
+
 export function defaultClaudeConfigDir(env = process.env) {
   return env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 }
@@ -101,6 +112,12 @@ export function createOrbitServer(
   });
 
   const server = http.createServer((req, res) => {
+    if (!isLoopbackHost(req.headers.host)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+
     if (req.method === 'GET' && req.url === '/') {
       if (fs.existsSync(webDistDir) && serveStatic(req, res, webDistDir)) {
         return;
@@ -127,6 +144,13 @@ export function createOrbitServer(
     }
 
     if (req.method === 'POST' && req.url === '/event') {
+      // Requiring JSON forces a CORS preflight, which this server never answers,
+      // so a cross-origin page cannot inject events with a "simple" text/plain POST.
+      if (!/^application\/json\b/i.test(req.headers['content-type'] ?? '')) {
+        res.writeHead(415);
+        res.end();
+        return;
+      }
       let body = '';
       req.on('data', (chunk) => {
         body += chunk;

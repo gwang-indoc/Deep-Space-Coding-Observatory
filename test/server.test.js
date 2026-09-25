@@ -377,3 +377,50 @@ test('POSTing a transcript_append is rejected', async () => {
   assert.equal(status, 400);
   await close();
 });
+
+function rawRequest(port, { method = 'GET', path: reqPath = '/events', headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path: reqPath, method, headers }, (res) => {
+      res.destroy();
+      resolve(res.statusCode);
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+test('rejects requests whose Host is not a loopback name (DNS rebinding)', async () => {
+  const { port, close } = await createOrbitServer(0, { configDir: makeConfigDir() });
+  try {
+    assert.equal(await rawRequest(port, { headers: { Host: `evil.example:${port}` } }), 403);
+    const body = JSON.stringify({ type: 'search', ts: 1, payload: {} });
+    assert.equal(
+      await rawRequest(port, { method: 'POST', path: '/event', body, headers: { Host: 'evil.example', 'Content-Type': 'application/json' } }),
+      403
+    );
+  } finally {
+    await close();
+  }
+});
+
+test('accepts loopback hosts on any port, so the Vite dev proxy still works', async () => {
+  const { port, close } = await createOrbitServer(0, { configDir: makeConfigDir() });
+  try {
+    for (const host of [`127.0.0.1:${port}`, `localhost:${port}`, 'localhost:5173', `[::1]:${port}`, 'LOCALHOST']) {
+      assert.equal(await rawRequest(port, { headers: { Host: host } }), 200, host);
+    }
+  } finally {
+    await close();
+  }
+});
+
+test('rejects a POST /event that is not application/json (no CORS preflight)', async () => {
+  const { port, close } = await createOrbitServer(0, { configDir: makeConfigDir() });
+  try {
+    const body = JSON.stringify({ type: 'search', ts: 1, payload: {} });
+    assert.equal(await rawRequest(port, { method: 'POST', path: '/event', body, headers: { 'Content-Type': 'text/plain' } }), 415);
+  } finally {
+    await close();
+  }
+});
