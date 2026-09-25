@@ -3,6 +3,21 @@ import fs from 'node:fs';
 import { createMapperContext, mapTranscriptLine } from './transcriptMapper.js';
 
 const NEWLINE = 0x0a;
+const EMPTY = Buffer.alloc(0);
+
+// Whether the byte just before `offset` ends a line, i.e. `offset` starts one.
+function startsLine(filePath, offset) {
+  const byte = Buffer.alloc(1);
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    return fs.readSync(fd, byte, 0, 1, offset - 1) === 1 && byte[0] === NEWLINE;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
 
 // Follows one transcript file at a time and emits the entries for each newly
 // appended complete line. Bytes are buffered until a newline so neither a
@@ -12,7 +27,12 @@ const NEWLINE = 0x0a;
 // and fs.watchFile takes its baseline stat on the libuv thread pool, so an
 // append landing before that stat would go unnoticed until the next write.
 // Nothing here may throw into the server.
-export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBytes = 2 * 1024 * 1024 }) {
+export function createTranscriptTail({
+  onEntries,
+  intervalMs = 500,
+  maxInitialBytes = 2 * 1024 * 1024,
+  maxPartialBytes = 8 * 1024 * 1024,
+}) {
   let current = null;
   let generation = 0;
 
@@ -27,11 +47,12 @@ export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBy
     }
     if (file.offset === null) {
       file.offset = size > maxInitialBytes ? size - maxInitialBytes : 0;
-      file.skipFirstLine = file.offset > 0;
+      file.skipFirstLine = file.offset > 0 && !startsLine(file.path, file.offset);
     } else if (size < file.offset) {
-      file.offset = 0;
-      file.partial = Buffer.alloc(0);
-      file.skipFirstLine = false;
+      // Rewritten rather than appended to: start over as a new session so the
+      // initial cap applies again and ids never repeat.
+      start(file.path);
+      return;
     }
     if (size === file.offset) return;
 
@@ -50,15 +71,18 @@ export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBy
 
     const data = Buffer.concat([file.partial, chunk.subarray(0, bytesRead)]);
     const lastNewline = data.lastIndexOf(NEWLINE);
-    if (lastNewline === -1) {
-      file.partial = data;
-      return;
-    }
-    file.partial = data.subarray(lastNewline + 1);
-    let lines = data.subarray(0, lastNewline).toString('utf8').split('\n');
-    if (file.skipFirstLine) {
+    file.partial = lastNewline === -1 ? data : data.subarray(lastNewline + 1);
+    let lines = lastNewline === -1 ? [] : data.subarray(0, lastNewline).toString('utf8').split('\n');
+    if (lines.length > 0 && file.skipFirstLine) {
       lines = lines.slice(1);
       file.skipFirstLine = false;
+    }
+    // An unterminated line this large is not one worth showing; drop what has
+    // arrived so the buffer (and the copy each poll) stays bounded, and skip
+    // the rest of that line when its newline finally comes.
+    if (file.partial.length > maxPartialBytes) {
+      file.partial = EMPTY;
+      file.skipFirstLine = true;
     }
 
     const entries = [];
@@ -79,8 +103,7 @@ export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBy
     if (current) clearInterval(current.timer);
   }
 
-  function follow(filePath) {
-    if (current?.path === filePath) return;
+  function start(filePath) {
     if (current) {
       stopWatching();
       onEntries([{ id: `separator:${generation}`, kind: 'separator', text: 'new session' }]);
@@ -89,13 +112,20 @@ export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBy
     current = {
       path: filePath,
       offset: null,
-      partial: Buffer.alloc(0),
+      partial: EMPTY,
       skipFirstLine: false,
       ctx: createMapperContext({ idPrefix: `g${generation}/` }),
       timer: setInterval(readNew, intervalMs),
     };
     current.timer.unref();
     readNew();
+  }
+
+  function follow(filePath) {
+    if (current?.path === filePath) return;
+    // Catch the old session's last lines, written since the previous poll.
+    readNew();
+    start(filePath);
   }
 
   function close() {

@@ -121,14 +121,16 @@ test('picks up a file created after follow()', async () => {
   assert.equal(got[0].text, 'late');
 });
 
-test('a truncated file is re-read from the start', async () => {
+test('a truncated file is followed afresh: separator, then its content with new ids', async () => {
   const file = tmpFile();
-  fs.writeFileSync(file, line('first-long-line-here'));
+  fs.writeFileSync(file, line('first-long-line-here', 'u1') + line('second', 'u2'));
   const { tail, got } = startTail();
   tail.follow(file);
-  fs.writeFileSync(file, line('new'));
-  await waitFor(() => got.length === 2);
-  assert.equal(got[1].text, 'new');
+  fs.writeFileSync(file, line('first-long-line-here', 'u1'));
+  await waitFor(() => got.length === 4);
+  assert.deepEqual(got.map((e) => e.kind), ['text', 'text', 'separator', 'text']);
+  assert.equal(got[3].text, 'first-long-line-here');
+  assert.equal(new Set(got.map((e) => e.id)).size, 4);
 });
 
 test('a large file is read only from its last maxInitialBytes, dropping the cut line', () => {
@@ -160,4 +162,38 @@ test('an append made while the fs thread pool is busy is still picked up', async
   fs.appendFileSync(file, line('two'));
   await waitFor(() => got.length === 2, 3000);
   assert.equal(got[1].text, 'two');
+});
+
+test('a large file whose window starts exactly on a line keeps that line', () => {
+  const file = tmpFile();
+  fs.writeFileSync(file, line('a'.repeat(200), 'old') + line('recent'));
+  const { tail, got } = startTail({ maxInitialBytes: Buffer.byteLength(line('recent')) });
+  tail.follow(file);
+  assert.deepEqual(got.map((e) => e.text), ['recent']);
+});
+
+test('an unterminated line past maxPartialBytes is dropped, and the next line still arrives', async () => {
+  const file = tmpFile();
+  fs.writeFileSync(file, '');
+  const { tail, got } = startTail({ maxPartialBytes: 64 });
+  tail.follow(file);
+  const huge = line('z'.repeat(300), 'huge');
+  fs.appendFileSync(file, huge.slice(0, 150));
+  await new Promise((r) => setTimeout(r, 80));
+  fs.appendFileSync(file, huge.slice(150) + line('after'));
+  await waitFor(() => got.length >= 1);
+  await new Promise((r) => setTimeout(r, 60));
+  assert.deepEqual(got.map((e) => e.text), ['after']);
+});
+
+test('switching files first reads what was appended to the old one', () => {
+  const a = tmpFile('a.jsonl');
+  const b = tmpFile('b.jsonl');
+  fs.writeFileSync(a, line('one'));
+  fs.writeFileSync(b, line('other'));
+  const { tail, got } = startTail({ intervalMs: 60_000 });
+  tail.follow(a);
+  fs.appendFileSync(a, line('last words'));
+  tail.follow(b);
+  assert.deepEqual(got.map((e) => e.text), ['one', 'last words', 'new session', 'other']);
 });
