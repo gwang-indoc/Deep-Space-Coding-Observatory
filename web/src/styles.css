@@ -273,3 +273,164 @@ html, body {
     animation: none;
   }
 }
+
+/* ---- Terminal panel: the session transcript, slid up from the bottom edge ---- */
+
+.terminal-trigger {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: auto;
+}
+
+.terminal-trigger__hint {
+  padding-bottom: 1px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(203, 213, 245, 0.35);
+}
+
+.terminal-panel {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 45vh;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 12, 18, 0.92);
+  border: 1px solid rgba(140, 160, 200, 0.25);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  backdrop-filter: blur(6px);
+  transform: translateY(105%);
+  transition: transform 200ms ease-out;
+  pointer-events: none;
+}
+
+.terminal-panel--open {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.terminal-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 16px 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e8ecf5;
+}
+
+.terminal-panel__empty {
+  margin-top: 12px;
+  color: #6b7a99;
+}
+
+.terminal-panel__jump {
+  position: absolute;
+  right: 20px;
+  bottom: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(140, 160, 200, 0.35);
+  background: rgba(20, 26, 40, 0.95);
+  color: #cbd5f5;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.term-entry {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.term-marker {
+  display: inline-block;
+  width: 18px;
+}
+
+.term-entry--prompt {
+  color: #aab4c8;
+}
+
+.term-entry--tool strong {
+  font-weight: 700;
+}
+
+.term-entry--notice .term-marker {
+  color: #4ade80;
+}
+
+.term-entry--output,
+.term-entry--diff {
+  margin-top: 2px;
+  padding-left: 18px;
+}
+
+.term-output-line {
+  color: #8ea2c6;
+}
+
+.term-elbow {
+  display: inline-block;
+  width: 18px;
+  color: #6b7a99;
+}
+
+.term-more {
+  color: #6b7a99;
+}
+
+.term-entry--error .term-output-line {
+  color: #f87171;
+}
+
+.term-diff-row--del {
+  background: rgba(127, 29, 29, 0.75);
+}
+
+.term-diff-row--add {
+  background: rgba(20, 83, 45, 0.75);
+}
+
+.term-diff-lineno {
+  display: inline-block;
+  min-width: 3ch;
+  margin-right: 1ch;
+  text-align: right;
+  color: #6b7a99;
+}
+
+.term-diff-row--del .term-diff-lineno {
+  color: #fca5a5;
+}
+
+.term-diff-row--add .term-diff-lineno {
+  color: #86efac;
+}
+
+.term-diff-sign {
+  display: inline-block;
+  width: 2ch;
+}
+
+.term-entry--separator {
+  margin-top: 16px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(140, 160, 200, 0.2);
+  text-align: center;
+  font-size: 11px;
+  color: #6b7a99;
+}
