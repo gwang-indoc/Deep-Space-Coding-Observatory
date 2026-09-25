@@ -19,7 +19,10 @@ export async function runNotify({ stdin, env }) {
     const port = Number(env.ORBIT_PORT);
     if (!port) return;
 
-    await postJson(port, '/event', event);
+    // The dashboard's terminal panel follows the main session's transcript only;
+    // a subagent's hooks carry its own agent_id.
+    const transcriptPath = parsed.agent_id ? null : parsed.transcript_path;
+    await postJson(port, '/event', typeof transcriptPath === 'string' ? { ...event, transcriptPath } : event);
   } catch {
     // observe-only hook: never let a mapping/network failure affect the wrapped Claude Code session
   }
