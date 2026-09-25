@@ -87,6 +87,7 @@ describe('TerminalPanel', () => {
 
   it('stops following when scrolled up and offers a jump back to the latest', () => {
     render(<TerminalPanel entries={ENTRIES} />);
+    fireEvent.mouseEnter(screen.getByTestId('terminal-trigger'));
     const body = screen.getByTestId('terminal-panel-body');
     Object.defineProperty(body, 'scrollHeight', { value: 1000, configurable: true });
     Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
@@ -115,5 +116,20 @@ describe('TerminalPanel ordering', () => {
     );
     const texts = [...container.querySelectorAll('.term-entry')].map((el) => el.textContent);
     expect(texts).toEqual(['●Edit(x.js)', '⎿edited', '●Bash(ls)', '⎿listing']);
+  });
+});
+
+describe('TerminalPanel while closed', () => {
+  afterEach(() => cleanup());
+
+  it('has nothing focusable, even when scrolled away from the latest output', () => {
+    render(<TerminalPanel entries={ENTRIES} />);
+    const body = screen.getByTestId('terminal-panel-body');
+    Object.defineProperty(body, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(body, 'scrollTop', { value: 100, writable: true, configurable: true });
+    fireEvent.scroll(body);
+    expect(screen.getByTestId('terminal-panel').getAttribute('data-open')).toBe('false');
+    expect(screen.queryByRole('button', { hidden: true })).toBeNull();
   });
 });

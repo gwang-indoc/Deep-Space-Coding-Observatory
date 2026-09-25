@@ -137,7 +137,7 @@ export default function TerminalPanel({ entries }) {
             ordered.map((entry) => <Entry key={entry.id} entry={entry} />)
           )}
         </div>
-        {!following && (
+        {open && !following && (
           <button type="button" className="terminal-panel__jump" onClick={jumpToLatest}>
             ↓ 最新
           </button>
