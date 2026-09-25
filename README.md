@@ -99,13 +99,6 @@ background subagent spends working does.
 | 20 min | 🌙 The Moon |
 | 25 min | 🪨 Mercury |
 
-> [!NOTE]
-> **Subagents boost planets.** Each running subagent (`Agent` / `Task`) takes
-> over one lit planet: it speeds up, and its orbit track and atmosphere glow
-> brighter. The pick comes from a hash of the subagent's id, so it stays the
-> same after a reload, and subagents running at the same time take different
-> planets.
-
 ### 🌌 Deep-space wonders: rare sights for long sessions
 
 When a new wonder unlocks, a toast announces it. Distant wonders are spread

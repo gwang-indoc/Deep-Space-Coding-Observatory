@@ -5,13 +5,9 @@ import { glowTexture, planetTexture, ringTexture } from './textures.js';
 import { PLANET_UNLOCKS } from '../state/planets.js';
 import Appear from './wonders/Appear.jsx';
 
-// A running subagent boosts a planet: it speeds up and its track and atmosphere
-// brighten. The planet itself keeps its real-world look so the system reads as
-// a solar system.
-const TRACK_COLOR = new THREE.Color('#4a5070');
-const BOOST_COLOR = new THREE.Color('#5fb0ff');
-const CALM_SPEED = 0.12;
-const BOOST_SPEED = 0.5;
+// Each planet keeps its real-world look so the system reads as a solar system.
+const TRACK_COLOR = '#4a5070';
+const ORBIT_SPEED = 0.12;
 
 // `orbit` is the track radius, in real order from the sun: packed close for the
 // rocky inner planets and opening up for the giants, with room for Earth's
@@ -28,7 +24,7 @@ const PLANET_SPECS = {
   neptune: { size: 0.34, atmosphere: '#6f9bff', tilt: 0.49, orbit: 11.5 },
 };
 
-function OrbitTrack({ radius, boost, throttle }) {
+function OrbitTrack({ radius, throttle }) {
   const materialRef = useRef(null);
   const geometry = useMemo(() => {
     const points = [];
@@ -42,9 +38,7 @@ function OrbitTrack({ radius, boost, throttle }) {
   useFrame(() => {
     const material = materialRef.current;
     if (!material) return;
-    const b = boost.current;
-    material.color.copy(TRACK_COLOR).lerp(BOOST_COLOR, b);
-    material.opacity = (0.2 + 0.4 * b) * (0.35 + 0.65 * throttle.current);
+    material.opacity = 0.2 * (0.35 + 0.65 * throttle.current);
   });
 
   return (
@@ -95,45 +89,34 @@ function Moon({ size }) {
   );
 }
 
-function Planet({ index, boosted, running }) {
+function Planet({ index, running }) {
   const groupRef = useRef(null);
   const bodyRef = useRef(null);
   const haloRef = useRef(null);
-  const materialRef = useRef(null);
   const { kind } = PLANET_UNLOCKS[index];
   const spec = PLANET_SPECS[kind];
   const radius = spec.orbit;
   const texture = useMemo(() => planetTexture(kind), [kind]);
   const glow = useMemo(() => glowTexture(), []);
   // Orbital angle and spin accumulate so the system can glide to a halt when
-  // Claude is idle or waiting, and resume from where it stopped. Boost eases in
-  // and out so a subagent starting or finishing never snaps the planet.
+  // Claude is idle or waiting, and resume from where it stopped.
   const motion = useRef({ angle: (index / PLANET_UNLOCKS.length) * Math.PI * 2, spin: 0 });
   const throttle = useRef(running ? 1 : 0);
-  const boost = useRef(boosted ? 1 : 0);
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
-    const t = state.clock.elapsedTime;
     const m = motion.current;
     throttle.current += ((running ? 1 : 0) - throttle.current) * Math.min(1, delta * 1.5);
-    boost.current += ((boosted ? 1 : 0) - boost.current) * Math.min(1, delta * 2);
-    const b = boost.current;
-    m.angle += delta * (CALM_SPEED + (BOOST_SPEED - CALM_SPEED) * b) * throttle.current;
-    m.spin += delta * (kind === 'jupiter' || kind === 'saturn' ? 0.5 : 0.25) * (1 + b) * (0.15 + 0.85 * throttle.current);
+    m.angle += delta * ORBIT_SPEED * throttle.current;
+    m.spin += delta * (kind === 'jupiter' || kind === 'saturn' ? 0.5 : 0.25) * (0.15 + 0.85 * throttle.current);
     groupRef.current.position.set(Math.cos(m.angle) * radius, 0, Math.sin(m.angle) * radius);
     if (bodyRef.current) bodyRef.current.rotation.y = m.spin;
-    if (materialRef.current) materialRef.current.emissiveIntensity = 0.15 * b;
-    if (haloRef.current) {
-      const pulse = 1 + Math.sin(t * 3) * 0.15 * b * throttle.current;
-      haloRef.current.scale.setScalar(spec.size * (3.4 + 1.2 * b) * pulse);
-      haloRef.current.material.opacity = (0.3 + 0.5 * b) * (0.25 + 0.75 * throttle.current);
-    }
+    if (haloRef.current) haloRef.current.material.opacity = 0.3 * (0.25 + 0.75 * throttle.current);
   });
 
   return (
     <>
-      <OrbitTrack radius={radius} boost={boost} throttle={throttle} />
+      <OrbitTrack radius={radius} throttle={throttle} />
       <group ref={groupRef}>
         <Appear>
           <sprite ref={haloRef} scale={spec.size * 3.4}>
@@ -142,14 +125,7 @@ function Planet({ index, boosted, running }) {
           <group rotation={[0, 0, spec.tilt]}>
             <mesh ref={bodyRef}>
               <sphereGeometry args={[spec.size, 48, 48]} />
-              <meshStandardMaterial
-                ref={materialRef}
-                map={texture}
-                roughness={0.9}
-                metalness={0}
-                emissive={BOOST_COLOR}
-                emissiveIntensity={0}
-              />
+              <meshStandardMaterial map={texture} roughness={0.9} metalness={0} />
             </mesh>
             {spec.rings && <Rings size={spec.size} faint={spec.rings === 'faint'} />}
           </group>
@@ -160,15 +136,14 @@ function Planet({ index, boosted, running }) {
   );
 }
 
-// `count` planets are lit (in PLANET_UNLOCKS order); `boosted` holds the indices
-// a running subagent is currently boosting.
-export default function PlanetLayer({ count, boosted, running = true }) {
+// `count` planets are lit, in PLANET_UNLOCKS order.
+export default function PlanetLayer({ count, running = true }) {
   if (!count) return null;
 
   return (
     <group>
       {PLANET_UNLOCKS.slice(0, count).map(({ kind }, index) => (
-        <Planet key={kind} index={index} boosted={boosted.has(index)} running={running} />
+        <Planet key={kind} index={index} running={running} />
       ))}
     </group>
   );
