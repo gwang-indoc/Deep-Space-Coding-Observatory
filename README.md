@@ -124,6 +124,11 @@ The **Uptime HUD** (bottom-right) shows total working time. The **Status HUD**
 (top-right) shows the model, context usage and rate limits. The **Step list**
 (bottom-left) shows what Claude is doing right now.
 
+Move the mouse to the **bottom edge** and the **terminal panel** slides up: a
+read-only replay of the session in Claude Code's own style, with your prompts,
+Claude's replies, each tool call with its output, and red/green edit diffs.
+Move away and it slides back down.
+
 ---
 
 ## ⚙️ How it works
@@ -156,6 +161,10 @@ The **Uptime HUD** (bottom-right) shows total working time. The **Status HUD**
 
 New browser tabs first receive a snapshot, so reloading keeps the current
 state. The hook wiring exists only for the lifetime of one `orbit` process.
+
+The terminal panel is fed by the session transcript: hook events carry its
+path, the server tails that JSONL file (only files under `~/.claude/projects/`
+are accepted) and streams the last 300 entries as `transcript_append` events.
 
 ---
 

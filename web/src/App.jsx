@@ -19,6 +19,7 @@ import ModeBanner from './hud/ModeBanner.jsx';
 import { useTabTitle } from './hud/useTabTitle.js';
 import UptimeHud from './hud/UptimeHud.jsx';
 import MilestoneToast from './hud/MilestoneToast.jsx';
+import TerminalPanel from './hud/TerminalPanel.jsx';
 import { useMilestoneToast } from './hud/useMilestoneToast.js';
 
 // Mode depends on time (the completion flash expires), so re-evaluate it periodically.
@@ -32,7 +33,7 @@ function useNow(intervalMs) {
 }
 
 function OrbitDashboard() {
-  const { orbitState, lastStatus, renderingPaused, activeStep, recentLog } = useOrbit();
+  const { orbitState, lastStatus, renderingPaused, activeStep, recentLog, transcriptEntries } = useOrbit();
   const now = useNow(500);
   const mode = selectOrbitMode(orbitState, now);
   useTabTitle(mode);
@@ -76,6 +77,7 @@ function OrbitDashboard() {
         <div className="milestone-toast-slot">
           <MilestoneToast milestone={toast} />
         </div>
+        <TerminalPanel entries={transcriptEntries} />
       </div>
     </div>
   );
