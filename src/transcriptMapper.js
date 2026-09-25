@@ -70,6 +70,8 @@ function diffRows(toolUseResult) {
       let oldNo = hunk.oldStart;
       let newNo = hunk.newStart;
       for (const line of hunk.lines ?? []) {
+        // "\ No newline at end of file" annotates the previous row; it is not a line.
+        if (line.startsWith('\\')) continue;
         const sign = line[0] === '+' || line[0] === '-' ? line[0] : ' ';
         const text = clip(line.slice(1), MAX_LINE_CHARS);
         if (sign === '-') rows.push({ sign, lineNo: oldNo++, text });
@@ -91,6 +93,14 @@ function diffRows(toolUseResult) {
       .map((text, i) => ({ sign: '+', lineNo: i + 1, text: clip(text, MAX_LINE_CHARS) }));
   }
   return null;
+}
+
+// Claude Code shows a Read as a count, not the file. Its own numLines excludes
+// anything appended to the result (such as a system reminder).
+function readSummary(toolUseResult, countedLines) {
+  if (toolUseResult?.type === 'image') return 'Read image';
+  const numLines = toolUseResult?.file?.numLines;
+  return `Read ${typeof numLines === 'number' ? numLines : countedLines} lines`;
 }
 
 function pushUserText(text, push) {
@@ -130,7 +140,7 @@ function pushToolResult(block, toolUseResult, ctx, push) {
 
   const text = resultText(block, toolUseResult);
   let all = text.split('\n').filter((line) => line.trim() !== '');
-  if (!isError && call?.name === 'Read') all = [`Read ${all.length} lines`];
+  if (!isError && call?.name === 'Read') all = [readSummary(toolUseResult, all.length)];
   if (all.length === 0) all = ['(No content)'];
   push({
     kind: 'output',

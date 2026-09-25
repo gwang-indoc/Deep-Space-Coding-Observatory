@@ -195,3 +195,35 @@ test('a tool entry carries its tool_use id so the panel can attach its result', 
   const [entry] = mapTranscriptLine(toolUse('toolu_9', 'Bash', { command: 'ls' }), ctx);
   assert.equal(entry.toolUseId, 'toolu_9');
 });
+
+test('an image Read says so instead of counting zero lines', () => {
+  const ctx = createMapperContext();
+  mapTranscriptLine(toolUse('t1', 'Read', { file_path: `${CWD}/shot.png` }), ctx);
+  const [entry] = mapTranscriptLine(
+    toolResult('t1', [{ type: 'image', source: { type: 'base64', data: 'iVBOR' } }], { type: 'image', file: { type: 'image/png' } }),
+    ctx
+  );
+  assert.deepEqual(entry.lines, ['Read image']);
+});
+
+test('a text Read uses the line count Claude Code reports', () => {
+  const ctx = createMapperContext();
+  mapTranscriptLine(toolUse('t1', 'Read', { file_path: `${CWD}/a.js` }), ctx);
+  const [entry] = mapTranscriptLine(
+    toolResult('t1', '     1\tone\n     2\t\n     3\tthree\n\n<system-reminder>\nWhenever you read a file…\n</system-reminder>', { type: 'text', file: { numLines: 3 } }),
+    ctx
+  );
+  assert.deepEqual(entry.lines, ['Read 3 lines']);
+});
+
+test('a "\\ No newline at end of file" marker neither shows nor shifts line numbers', () => {
+  const ctx = createMapperContext();
+  mapTranscriptLine(toolUse('t1', 'Edit', { file_path: `${CWD}/a.txt` }), ctx);
+  const patch = [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: ['-old', '\\ No newline at end of file', '+new', '+more'] }];
+  const [entry] = mapTranscriptLine(toolResult('t1', 'ok', { filePath: `${CWD}/a.txt`, structuredPatch: patch }), ctx);
+  assert.deepEqual(entry.rows, [
+    { sign: '-', lineNo: 1, text: 'old' },
+    { sign: '+', lineNo: 1, text: 'new' },
+    { sign: '+', lineNo: 2, text: 'more' },
+  ]);
+});
