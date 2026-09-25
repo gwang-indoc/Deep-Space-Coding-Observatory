@@ -67,6 +67,18 @@ const TRANSCRIPT_LIMIT = 300;
 // (which forwards Host: localhost:5173) keeps working.
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
 
+// One string per transcript file, however it was reached (a symlinked
+// directory, different case on a case-insensitive disk), so the tail does not
+// mistake it for a new session. The directory is resolved rather than the file
+// because Claude Code may report the path before the file exists.
+function canonicalTranscriptPath(filePath) {
+  try {
+    return path.join(fs.realpathSync.native(path.dirname(filePath)), path.basename(filePath));
+  } catch {
+    return filePath;
+  }
+}
+
 function isLoopbackHost(hostHeader) {
   if (typeof hostHeader !== 'string') return false;
   return LOOPBACK_HOSTNAMES.has(hostHeader.replace(/:\d+$/, '').toLowerCase());
@@ -169,7 +181,7 @@ export function createOrbitServer(
           applyEvent(state, event);
           broadcast(event);
           if (isAcceptedTranscriptPath(transcriptPath, configDir)) {
-            transcriptTail.follow(path.resolve(transcriptPath));
+            transcriptTail.follow(canonicalTranscriptPath(path.resolve(transcriptPath)));
           }
           res.writeHead(204);
           res.end();

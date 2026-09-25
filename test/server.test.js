@@ -424,3 +424,19 @@ test('rejects a POST /event that is not application/json (no CORS preflight)', a
     await close();
   }
 });
+
+test('the same transcript reached through a symlinked directory is not a new session', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 's.jsonl');
+  fs.writeFileSync(file, transcriptLine('only once', 'u1'));
+  fs.symlinkSync(path.join(configDir, 'projects', 'p'), path.join(configDir, 'projects', 'link'));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+  try {
+    await postEvent(port, { type: 'mission_start', ts: Date.now(), payload: {}, transcriptPath: file });
+    await postEvent(port, { type: 'search', ts: Date.now(), payload: {}, transcriptPath: path.join(configDir, 'projects', 'link', 's.jsonl') });
+    const { transcript } = (await snapshotOf(port)).payload;
+    assert.deepEqual(transcript.map((e) => e.kind), ['text']);
+  } finally {
+    await close();
+  }
+});
