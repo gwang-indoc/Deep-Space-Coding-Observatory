@@ -169,7 +169,7 @@ function mapLine(obj, ctx) {
       } else if (block?.type === 'tool_use') {
         const input = block.input && typeof block.input === 'object' ? block.input : {};
         ctx.pendingTools.set(block.id, { name: block.name, input });
-        push({ kind: 'tool', name: String(block.name ?? ''), summary: toolSummary(block.name, input, ctx.cwd) });
+        push({ kind: 'tool', toolUseId: block.id, name: String(block.name ?? ''), summary: toolSummary(block.name, input, ctx.cwd) });
       }
     }
   }

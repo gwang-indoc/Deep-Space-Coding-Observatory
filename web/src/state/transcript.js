@@ -11,3 +11,24 @@ export function appendTranscript(entries, incoming) {
 export function transcriptFromSnapshot(payload) {
   return Array.isArray(payload?.transcript) ? payload.transcript.slice(-TRANSCRIPT_LIMIT) : [];
 }
+
+const RESULT_KINDS = new Set(['output', 'diff']);
+
+// Parallel tool calls are written as consecutive calls followed by their
+// results, so in file order every result would sit under the last call. Like
+// the Claude Code TUI, show each result directly under its own call.
+export function groupToolResults(entries) {
+  const toolIds = new Set(entries.filter((e) => e.kind === 'tool' && e.toolUseId).map((e) => e.toolUseId));
+  const isAttached = (e) => RESULT_KINDS.has(e.kind) && toolIds.has(e.toolUseId);
+  const results = new Map();
+  for (const e of entries) {
+    if (isAttached(e)) results.set(e.toolUseId, [...(results.get(e.toolUseId) ?? []), e]);
+  }
+  const ordered = [];
+  for (const e of entries) {
+    if (isAttached(e)) continue;
+    ordered.push(e);
+    if (e.kind === 'tool') ordered.push(...(results.get(e.toolUseId) ?? []));
+  }
+  return ordered;
+}

@@ -189,3 +189,9 @@ test('ids are stable, unique per block and carry the context prefix', () => {
   );
   assert.deepEqual(out.map((e) => e.id), ['g2/a1:0', 'g2/a1:1']);
 });
+
+test('a tool entry carries its tool_use id so the panel can attach its result', () => {
+  const ctx = createMapperContext();
+  const [entry] = mapTranscriptLine(toolUse('toolu_9', 'Bash', { command: 'ls' }), ctx);
+  assert.equal(entry.toolUseId, 'toolu_9');
+});

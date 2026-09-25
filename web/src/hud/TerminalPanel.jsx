@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { groupToolResults } from '../state/transcript.js';
 
 export const CLOSE_DELAY_MS = 300;
 // Within this distance of the bottom counts as "at the latest output".
@@ -83,6 +84,7 @@ export default function TerminalPanel({ entries }) {
   const [following, setFollowing] = useState(true);
   const closeTimer = useRef(null);
   const bodyRef = useRef(null);
+  const ordered = useMemo(() => groupToolResults(entries), [entries]);
 
   function cancelClose() {
     clearTimeout(closeTimer.current);
@@ -132,7 +134,7 @@ export default function TerminalPanel({ entries }) {
           {entries.length === 0 ? (
             <div className="terminal-panel__empty">等待 Claude Code 输出…</div>
           ) : (
-            entries.map((entry) => <Entry key={entry.id} entry={entry} />)
+            ordered.map((entry) => <Entry key={entry.id} entry={entry} />)
           )}
         </div>
         {!following && (

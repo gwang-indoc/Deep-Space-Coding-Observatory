@@ -98,3 +98,22 @@ describe('TerminalPanel', () => {
     expect(screen.queryByText('↓ 最新')).toBeNull();
   });
 });
+
+describe('TerminalPanel ordering', () => {
+  afterEach(() => cleanup());
+
+  it('renders a parallel call\'s result under its own call', () => {
+    const { container } = render(
+      <TerminalPanel
+        entries={[
+          { id: '1', kind: 'tool', toolUseId: 'a', name: 'Edit', summary: 'x.js' },
+          { id: '2', kind: 'tool', toolUseId: 'b', name: 'Bash', summary: 'ls' },
+          { id: '3', kind: 'output', toolUseId: 'a', lines: ['edited'], more: 0, isError: false },
+          { id: '4', kind: 'output', toolUseId: 'b', lines: ['listing'], more: 0, isError: false },
+        ]}
+      />
+    );
+    const texts = [...container.querySelectorAll('.term-entry')].map((el) => el.textContent);
+    expect(texts).toEqual(['●Edit(x.js)', '⎿edited', '●Bash(ls)', '⎿listing']);
+  });
+});
