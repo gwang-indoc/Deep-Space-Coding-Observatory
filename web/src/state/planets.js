@@ -1,16 +1,17 @@
 // The solar system lights up one planet at a time as Claude keeps working this
-// session; once lit a planet stays. The first is there from the start. Unlock order is independent of where
-// a body orbits: the tracks follow the real order from the sun.
+// session; once lit a planet stays. The first is there from the start. Planets
+// unlock outward from the sun, in the same order as their tracks, so the
+// system fills in from the inside out.
 export const PLANET_UNLOCKS = [
-  { kind: 'earth', minutes: 0 },
-  { kind: 'mars', minutes: 2 },
-  { kind: 'venus', minutes: 4 },
-  { kind: 'jupiter', minutes: 6 },
-  { kind: 'saturn', minutes: 9 },
-  { kind: 'uranus', minutes: 12 },
-  { kind: 'neptune', minutes: 16 },
-  { kind: 'moon', minutes: 20 },
-  { kind: 'mercury', minutes: 25 },
+  { kind: 'mercury', minutes: 0 },
+  { kind: 'venus', minutes: 2 },
+  { kind: 'earth', minutes: 4 },
+  { kind: 'moon', minutes: 6 },
+  { kind: 'mars', minutes: 9 },
+  { kind: 'jupiter', minutes: 12 },
+  { kind: 'saturn', minutes: 16 },
+  { kind: 'uranus', minutes: 20 },
+  { kind: 'neptune', minutes: 25 },
 ];
 
 const MINUTE_MS = 60 * 1000;

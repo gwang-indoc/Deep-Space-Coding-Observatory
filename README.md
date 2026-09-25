@@ -7,7 +7,7 @@
 **Watch Claude Code work, rendered as a living solar system.**
 
 *Every file it reads becomes a satellite. Every command launches a rocket.<br>
-The longer it works, the more of the universe opens up: from Earth to a black hole.*
+The longer it works, the more of the universe opens up: from Mercury to a black hole.*
 
 ![node](https://img.shields.io/badge/node-%3E%3D20-3c873a?logo=node.js&logoColor=white)
 ![three.js](https://img.shields.io/badge/three.js-r166-000000?logo=threedotjs&logoColor=white)
@@ -89,15 +89,15 @@ background subagent spends working does.
 
 | Working time | Planet |
 |---:|---|
-| 0 min | 🌍 Earth |
-| 2 min | 🔴 Mars |
-| 4 min | 🟡 Venus |
-| 6 min | 🟠 Jupiter |
-| 9 min | 🪐 Saturn |
-| 12 min | 🩵 Uranus |
-| 16 min | 🔵 Neptune |
-| 20 min | 🌙 The Moon |
-| 25 min | 🪨 Mercury |
+| 0 min | 🪨 Mercury |
+| 2 min | 🟡 Venus |
+| 4 min | 🌍 Earth |
+| 6 min | 🌙 The Moon |
+| 9 min | 🔴 Mars |
+| 12 min | 🟠 Jupiter |
+| 16 min | 🪐 Saturn |
+| 20 min | 🩵 Uranus |
+| 25 min | 🔵 Neptune |
 
 ### 🌌 Deep-space wonders: rare sights for long sessions
 

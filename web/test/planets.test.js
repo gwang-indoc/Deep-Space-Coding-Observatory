@@ -12,6 +12,12 @@ describe('planet unlocks', () => {
     expect(new Set(PLANET_UNLOCKS.map((p) => p.kind)).size).toBe(9);
   });
 
+  it('unlocks outward from the sun, in the order the tracks are laid out', () => {
+    expect(PLANET_UNLOCKS.map((p) => p.kind)).toEqual([
+      'mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune',
+    ]);
+  });
+
   it('shows the first planet from the very start', () => {
     expect(unlockedPlanetCount(0)).toBe(1);
   });
