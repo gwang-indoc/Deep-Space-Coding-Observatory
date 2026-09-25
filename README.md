@@ -129,6 +129,8 @@ read-only replay of the session in Claude Code's own style, with your prompts,
 Claude's replies, each tool call with its output, and red/green edit diffs.
 Move away and it slides back down.
 
+![The terminal panel slid up under the solar system: an Edit with a red/green diff, a second Edit adding a test, npm test passing 42 tests, and Claude's closing reply](docs/images/orbit-terminal.png)
+
 ---
 
 ## ⚙️ How it works
