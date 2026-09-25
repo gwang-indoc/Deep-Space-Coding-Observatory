@@ -3,7 +3,9 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import { createInitialState, applyEvent, snapshotEvent } from './state.js';
+import { createTranscriptTail } from './transcriptTail.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST_DIR = path.join(__dirname, '..', 'web', 'dist');
@@ -57,7 +59,25 @@ const KNOWN_EVENT_TYPES = new Set([
 
 const NO_SLEEP_GUARD = { update() {}, release() {} };
 
-export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR, sleepGuard = NO_SLEEP_GUARD } = {}) {
+const TRANSCRIPT_LIMIT = 300;
+
+export function defaultClaudeConfigDir(env = process.env) {
+  return env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+}
+
+// The server accepts POSTs from anything on this machine, so a transcript path
+// is only ever opened if it is a session transcript under Claude's own config.
+export function isAcceptedTranscriptPath(candidate, configDir) {
+  if (typeof candidate !== 'string' || candidate === '') return false;
+  const resolved = path.resolve(candidate);
+  const projectsDir = path.resolve(configDir, 'projects');
+  return resolved.endsWith('.jsonl') && resolved.startsWith(projectsDir + path.sep);
+}
+
+export function createOrbitServer(
+  port,
+  { webDistDir = WEB_DIST_DIR, sleepGuard = NO_SLEEP_GUARD, configDir = defaultClaudeConfigDir(), transcriptPollMs = 500 } = {}
+) {
   const state = createInitialState();
   const clients = new Set();
 
@@ -67,6 +87,18 @@ export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR, sleepGuard 
       res.write(line);
     }
   }
+
+  // The terminal panel's backlog: the last TRANSCRIPT_LIMIT entries, replayed in
+  // every snapshot and extended by transcript_append broadcasts.
+  const transcript = [];
+  const transcriptTail = createTranscriptTail({
+    intervalMs: transcriptPollMs,
+    onEntries(entries) {
+      transcript.push(...entries);
+      if (transcript.length > TRANSCRIPT_LIMIT) transcript.splice(0, transcript.length - TRANSCRIPT_LIMIT);
+      broadcast({ type: 'transcript_append', ts: Date.now(), payload: { entries: entries.slice(-TRANSCRIPT_LIMIT) } });
+    },
+  });
 
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/') {
@@ -84,7 +116,7 @@ export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR, sleepGuard 
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
       });
-      res.write(`data: ${JSON.stringify(snapshotEvent(state))}\n\n`);
+      res.write(`data: ${JSON.stringify(snapshotEvent(state, { transcript }))}\n\n`);
       clients.add(res);
       sleepGuard.update(clients.size);
       req.on('close', () => {
@@ -101,14 +133,20 @@ export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR, sleepGuard 
       });
       req.on('end', () => {
         try {
-          const event = JSON.parse(body);
-          if (!event || !KNOWN_EVENT_TYPES.has(event.type)) {
+          const parsed = JSON.parse(body);
+          if (!parsed || !KNOWN_EVENT_TYPES.has(parsed.type)) {
             res.writeHead(400);
             res.end();
             return;
           }
+          // transcriptPath rides along with hook events but is not part of the
+          // event the dashboard sees.
+          const { transcriptPath, ...event } = parsed;
           applyEvent(state, event);
           broadcast(event);
+          if (isAcceptedTranscriptPath(transcriptPath, configDir)) {
+            transcriptTail.follow(path.resolve(transcriptPath));
+          }
           res.writeHead(204);
           res.end();
         } catch {
@@ -141,6 +179,7 @@ export function createOrbitServer(port, { webDistDir = WEB_DIST_DIR, sleepGuard 
               res.end();
             }
             clients.clear();
+            transcriptTail.close();
             sleepGuard.release();
             server.close(r);
             if (typeof server.closeAllConnections === 'function') {

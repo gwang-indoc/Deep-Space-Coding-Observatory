@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import path from 'node:path';
-import { createOrbitServer } from '../src/server.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import { createOrbitServer, isAcceptedTranscriptPath } from '../src/server.js';
 
 function postEvent(port, event) {
   return new Promise((resolve, reject) => {
@@ -265,4 +267,113 @@ test('tells the sleep guard how many dashboards are connected', async () => {
 
   await close();
   assert.equal(released, true);
+});
+
+function makeConfigDir() {
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-config-'));
+  fs.mkdirSync(path.join(configDir, 'projects', 'p'), { recursive: true });
+  return configDir;
+}
+
+function transcriptLine(text, uuid) {
+  return JSON.stringify({ type: 'assistant', uuid, message: { content: [{ type: 'text', text }] } }) + '\n';
+}
+
+async function snapshotOf(port) {
+  const [snapshot] = await collectSseEvents(port, 1);
+  return snapshot;
+}
+
+test('isAcceptedTranscriptPath only accepts .jsonl files under <configDir>/projects', () => {
+  const configDir = '/home/me/.claude';
+  assert.equal(isAcceptedTranscriptPath('/home/me/.claude/projects/p/s.jsonl', configDir), true);
+  assert.equal(isAcceptedTranscriptPath('/home/me/.claude/projects/p/s.json', configDir), false);
+  assert.equal(isAcceptedTranscriptPath('/home/me/.claude/projects-evil/p/s.jsonl', configDir), false);
+  assert.equal(isAcceptedTranscriptPath('/home/me/.claude/projects/../secrets.jsonl', configDir), false);
+  assert.equal(isAcceptedTranscriptPath('/etc/passwd', configDir), false);
+  assert.equal(isAcceptedTranscriptPath(undefined, configDir), false);
+  assert.equal(isAcceptedTranscriptPath(42, configDir), false);
+});
+
+test('a posted transcriptPath streams transcript_append after the event itself', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 's.jsonl');
+  fs.writeFileSync(file, transcriptLine('hello from claude', 'u1'));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+  const collected = collectSseEvents(port, 3);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  await postEvent(port, { type: 'mission_start', ts: Date.now(), payload: { prompt: 'hi' }, transcriptPath: file });
+
+  const events = await collected;
+  assert.deepEqual(events.map((e) => e.type), ['snapshot', 'mission_start', 'transcript_append']);
+  assert.equal('transcriptPath' in events[1], false);
+  assert.equal(events[2].payload.entries[0].text, 'hello from claude');
+  await close();
+});
+
+test('the snapshot carries the transcript so a reload keeps it', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 's.jsonl');
+  fs.writeFileSync(file, transcriptLine('one', 'u1') + transcriptLine('two', 'u2'));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+
+  await postEvent(port, { type: 'mission_start', ts: Date.now(), payload: {}, transcriptPath: file });
+
+  const snapshot = await snapshotOf(port);
+  assert.deepEqual(snapshot.payload.transcript.map((e) => e.text), ['one', 'two']);
+  await close();
+});
+
+test('the transcript buffer keeps only the last 300 entries', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 's.jsonl');
+  fs.writeFileSync(file, Array.from({ length: 320 }, (_, i) => transcriptLine(`m${i}`, `u${i}`)).join(''));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+
+  await postEvent(port, { type: 'mission_start', ts: Date.now(), payload: {}, transcriptPath: file });
+
+  const { transcript } = (await snapshotOf(port)).payload;
+  assert.equal(transcript.length, 300);
+  assert.equal(transcript[0].text, 'm20');
+  assert.equal(transcript[299].text, 'm319');
+  await close();
+});
+
+test('repeating the same transcriptPath does not duplicate entries', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 's.jsonl');
+  fs.writeFileSync(file, transcriptLine('only once', 'u1'));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+
+  await postEvent(port, { type: 'mission_start', ts: Date.now(), payload: {}, transcriptPath: file });
+  await postEvent(port, { type: 'search', ts: Date.now(), payload: {}, transcriptPath: file });
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  const { transcript } = (await snapshotOf(port)).payload;
+  assert.deepEqual(transcript.map((e) => e.text), ['only once']);
+  await close();
+});
+
+test('a transcriptPath outside <configDir>/projects is ignored but the event still applies', async () => {
+  const configDir = makeConfigDir();
+  const outside = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-out-')), 's.jsonl');
+  fs.writeFileSync(outside, transcriptLine('secret', 'u1'));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+
+  const status = await postEvent(port, { type: 'mission_start', ts: Date.now(), payload: {}, transcriptPath: outside });
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  assert.equal(status, 204);
+  const snapshot = await snapshotOf(port);
+  assert.deepEqual(snapshot.payload.transcript, []);
+  assert.equal(snapshot.payload.missionActive, true);
+  await close();
+});
+
+test('POSTing a transcript_append is rejected', async () => {
+  const { port, close } = await createOrbitServer(0, { configDir: makeConfigDir() });
+  const status = await postEvent(port, { type: 'transcript_append', ts: Date.now(), payload: { entries: [] } });
+  assert.equal(status, 400);
+  await close();
 });

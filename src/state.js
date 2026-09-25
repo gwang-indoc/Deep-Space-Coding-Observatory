@@ -77,7 +77,7 @@ export function applyEvent(state, event) {
   return state;
 }
 
-export function snapshotEvent(state) {
+export function snapshotEvent(state, { transcript = [] } = {}) {
   return {
     type: 'snapshot',
     ts: Date.now(),
@@ -88,6 +88,7 @@ export function snapshotEvent(state) {
       waiting: state.waiting,
       activeMs: state.activeMs,
       activeSince: state.activeSince,
+      transcript,
     },
   };
 }
