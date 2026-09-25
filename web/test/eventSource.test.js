@@ -61,4 +61,17 @@ describe('createEventStream', () => {
     stream.close();
     expect(FakeEventSource.instances[0].closed).toBe(true);
   });
+
+  it('routes transcript_append to onTranscriptAppend, not the animation queue', () => {
+    const appended = [];
+    const queued = [];
+    createEventStream({
+      onTranscriptAppend: (p) => appended.push(p),
+      onQueueableEvent: (e) => queued.push(e),
+      EventSourceImpl: FakeEventSource,
+    });
+    FakeEventSource.instances[0].emit({ type: 'transcript_append', ts: 1, payload: { entries: [{ id: 'a' }] } });
+    expect(appended).toEqual([{ entries: [{ id: 'a' }] }]);
+    expect(queued).toEqual([]);
+  });
 });

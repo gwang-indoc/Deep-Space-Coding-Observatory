@@ -2,6 +2,7 @@ export function createEventStream({
   url = '/events',
   onSnapshot,
   onStatusUpdate,
+  onTranscriptAppend,
   onQueueableEvent,
   EventSourceImpl = typeof window !== 'undefined' ? window.EventSource : undefined,
 } = {}) {
@@ -22,6 +23,10 @@ export function createEventStream({
     }
     if (event.type === 'status_update') {
       onStatusUpdate?.(event.payload);
+      return;
+    }
+    if (event.type === 'transcript_append') {
+      onTranscriptAppend?.(event.payload);
       return;
     }
     onQueueableEvent?.(event);

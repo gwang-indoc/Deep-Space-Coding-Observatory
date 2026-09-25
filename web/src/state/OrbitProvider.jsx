@@ -4,6 +4,7 @@ import { createAnimationQueue } from './animationQueue.js';
 import { createEventStream } from './eventSource.js';
 import { createWakeLockController } from './wakeLock.js';
 import { createVisibilityPauseController } from './visibilityPause.js';
+import { appendTranscript, transcriptFromSnapshot } from './transcript.js';
 
 const OrbitContext = createContext(null);
 
@@ -57,6 +58,7 @@ export function OrbitProvider({ children }) {
   const [renderingPaused, setRenderingPaused] = useState(false);
   const [activeStep, setActiveStep] = useState(null);
   const [recentLog, setRecentLog] = useState([]);
+  const [transcriptEntries, setTranscriptEntries] = useState([]);
   const queueRef = useRef(null);
   if (queueRef.current === null) {
     queueRef.current = createAnimationQueue();
@@ -85,8 +87,10 @@ export function OrbitProvider({ children }) {
         onSnapshot: (payload) => {
           dispatch({ type: 'snapshot', ts: Date.now(), payload });
           if (payload.lastStatus) setLastStatus(payload.lastStatus);
+          setTranscriptEntries(transcriptFromSnapshot(payload));
         },
         onStatusUpdate: (payload) => setLastStatus(payload),
+        onTranscriptAppend: (payload) => setTranscriptEntries((prev) => appendTranscript(prev, payload?.entries)),
         onQueueableEvent: (event) => queueRef.current.push(event),
       });
     }
@@ -123,7 +127,7 @@ export function OrbitProvider({ children }) {
   }, []);
 
   return (
-    <OrbitContext.Provider value={{ orbitState, lastStatus, renderingPaused, activeStep, recentLog }}>
+    <OrbitContext.Provider value={{ orbitState, lastStatus, renderingPaused, activeStep, recentLog, transcriptEntries }}>
       {children}
     </OrbitContext.Provider>
   );
