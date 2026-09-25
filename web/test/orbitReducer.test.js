@@ -91,6 +91,20 @@ describe('applyOrbitEvent: subagent planets (agent_start / agent_end)', () => {
     expect(state.missionActive).toBe(true);
   });
 
+  it('a planet linked to its agentId can be ended by that agentId', () => {
+    let state = applyOrbitEvent(createInitialOrbitState(), { type: 'agent_start', ts: 1, payload: { id: 'toolu_a', text: 'A' } });
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 2, payload: { id: 'toolu_a', agentId: 'a1' } });
+    expect(state.todos).toEqual([{ id: 'toolu_a', text: 'A', status: 'in_progress', agentId: 'a1' }]);
+    state = applyOrbitEvent(state, { type: 'agent_end', ts: 3, payload: { agentId: 'a1', status: 'completed' } });
+    expect(state.todos).toEqual([{ id: 'toolu_a', text: 'A', status: 'completed', agentId: 'a1' }]);
+  });
+
+  it('agent_end for an unknown agentId leaves the planets unchanged', () => {
+    const start = applyOrbitEvent(createInitialOrbitState(), { type: 'agent_start', ts: 1, payload: { id: 'a', text: 'A' } });
+    const state = applyOrbitEvent(start, { type: 'agent_end', ts: 2, payload: { agentId: 'zzz', status: 'completed' } });
+    expect(state.todos).toBe(start.todos);
+  });
+
   it('mission_start drops finished planets but keeps ones still running', () => {
     let state = createInitialOrbitState();
     state = applyOrbitEvent(state, { type: 'agent_start', ts: 1, payload: { id: 'a', text: 'A' } });

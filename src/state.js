@@ -31,15 +31,23 @@ function trackActiveTime(state, ts) {
 // "waiting for input" state in place.
 const KEEPS_WAITING = new Set(['waiting', 'status_update', 'snapshot']);
 
-// Subagent planets: agent_start adds one, agent_end marks it finished. The
+// Subagent planets: agent_start adds one (or, carrying an agentId, links a
+// background launch to it), agent_end marks it finished by either id. The
 // dashboard reducer mirrors these rules.
-function startAgentPlanet(todos, { id, text }) {
-  if (todos.some((t) => t.id === id)) return todos;
-  return [...todos, { id, text: text ?? '', status: 'in_progress' }];
+function startAgentPlanet(todos, { id, text, agentId }) {
+  if (todos.some((t) => t.id === id)) {
+    return agentId ? todos.map((t) => (t.id === id ? { ...t, agentId } : t)) : todos;
+  }
+  const planet = { id, text: text ?? '', status: 'in_progress' };
+  return [...todos, agentId ? { ...planet, agentId } : planet];
 }
 
-function endAgentPlanet(todos, { id }) {
-  return todos.map((t) => (t.id === id ? { ...t, status: 'completed' } : t));
+function isAgentPlanet(planet, { id, agentId }) {
+  return (id != null && planet.id === id) || (agentId != null && planet.agentId === agentId);
+}
+
+function endAgentPlanet(todos, target) {
+  return todos.map((t) => (isAgentPlanet(t, target) ? { ...t, status: 'completed' } : t));
 }
 
 export function applyEvent(state, event) {

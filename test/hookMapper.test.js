@@ -99,7 +99,7 @@ test('PostToolUse Agent for a foreground subagent maps to agent_end', () => {
   assert.deepEqual(event, { type: 'agent_end', ts: event.ts, payload: { id: 'toolu_1', status: 'completed' } });
 });
 
-test('PostToolUse Agent for a background launch returns null (it is still running)', () => {
+test('PostToolUse Agent for a background launch links the planet to its agentId (it is still running)', () => {
   const event = mapHookEvent({
     hook_event_name: 'PostToolUse',
     tool_name: 'Agent',
@@ -107,7 +107,38 @@ test('PostToolUse Agent for a background launch returns null (it is still runnin
     tool_use_id: 'toolu_1',
     tool_response: { isAsync: true, status: 'async_launched', agentId: 'a1' },
   });
+  assert.deepEqual(event, { type: 'agent_start', ts: event.ts, payload: { id: 'toolu_1', agentId: 'a1' } });
+});
+
+test('PostToolUse Agent for a background launch without an agentId returns null', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Agent',
+    tool_use_id: 'toolu_1',
+    tool_response: { status: 'async_launched' },
+  });
   assert.equal(event, null);
+});
+
+test('a task-notification with only a task-id ends the agent by agentId', () => {
+  const prompt = [
+    '<task-notification>',
+    '<task-id>a1</task-id>',
+    '<output-file>/tmp/a1.output</output-file>',
+    '<status>completed</status>',
+    '</task-notification>',
+  ].join('\n');
+  const event = mapHookEvent({ hook_event_name: 'UserPromptSubmit', prompt });
+  assert.deepEqual(event, {
+    type: 'agent_end',
+    ts: event.ts,
+    payload: { agentId: 'a1', status: 'completed', resumesMission: true },
+  });
+});
+
+test('SubagentStop ends the agent by agentId, including one a subagent launched', () => {
+  const event = mapHookEvent({ hook_event_name: 'SubagentStop', agent_id: 'a2', agent_type: 'fork' });
+  assert.deepEqual(event, { type: 'agent_end', ts: event.ts, payload: { agentId: 'a2', status: 'completed' } });
 });
 
 test('UserPromptSubmit carrying a background task-notification maps to agent_end that resumes the mission', () => {

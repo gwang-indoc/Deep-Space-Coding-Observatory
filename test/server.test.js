@@ -183,6 +183,18 @@ test('subagent events become planets, and a new prompt clears only the finished 
   await close();
 });
 
+test('a background subagent linked to its agentId can be ended by that agentId', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'agent_start', ts: 1000, payload: { id: 'toolu_a', text: 'Task A' } });
+  await postEvent(port, { type: 'agent_start', ts: 1001, payload: { id: 'toolu_a', agentId: 'a1' } });
+  await postEvent(port, { type: 'agent_end', ts: 1500, payload: { agentId: 'a1', status: 'completed' } });
+  const [snapshot] = await collectSseEvents(port, 1);
+  assert.deepEqual(snapshot.payload.todos, [{ id: 'toolu_a', text: 'Task A', status: 'completed', agentId: 'a1' }]);
+
+  await close();
+});
+
 test('rejects a POST /event with an unknown type', async () => {
   const { port, close } = await createOrbitServer(0);
   const status = await postEvent(port, { type: 'not_a_real_type', ts: Date.now(), payload: {} });

@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInlineSettings } from '../src/settingsBuilder.js';
 
-test('builds hooks for all five events plus a statusLine command', () => {
+test('builds hooks for all six events plus a statusLine command', () => {
   const json = buildInlineSettings({ notifyPath: '/bin/orbit-notify', statuslinePath: '/bin/orbit-statusline', port: 4321 });
   const settings = JSON.parse(json);
 
-  for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop']) {
+  for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStop']) {
     assert.ok(settings.hooks[event], `missing hook config for ${event}`);
     const [entry] = settings.hooks[event];
     assert.equal(entry.hooks[0].type, 'command');

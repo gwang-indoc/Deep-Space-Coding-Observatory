@@ -24,6 +24,7 @@ export function buildInlineSettings({ notifyPath, statuslinePath, port }) {
       PostToolUse: [matched],
       Notification: [unmatched],
       Stop: [unmatched],
+      SubagentStop: [unmatched],
     },
     statusLine: commandHook(statuslinePath, port),
   });

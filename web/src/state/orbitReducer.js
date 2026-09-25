@@ -59,14 +59,23 @@ function upsertSatellite(satellites, file, ts) {
 
 // Mirrors the server's subagent planet rules. Both return the same array when
 // nothing changes.
-function startAgentPlanet(todos, { id, text }) {
-  if (todos.some((t) => t.id === id)) return todos;
-  return [...todos, { id, text: text ?? '', status: 'in_progress' }];
+function startAgentPlanet(todos, { id, text, agentId }) {
+  const existing = todos.find((t) => t.id === id);
+  if (existing) {
+    if (!agentId || existing.agentId === agentId) return todos;
+    return todos.map((t) => (t.id === id ? { ...t, agentId } : t));
+  }
+  const planet = { id, text: text ?? '', status: 'in_progress' };
+  return [...todos, agentId ? { ...planet, agentId } : planet];
 }
 
-function endAgentPlanet(todos, { id }) {
-  if (!todos.some((t) => t.id === id && t.status !== 'completed')) return todos;
-  return todos.map((t) => (t.id === id ? { ...t, status: 'completed' } : t));
+function isAgentPlanet(planet, { id, agentId }) {
+  return (id != null && planet.id === id) || (agentId != null && planet.agentId === agentId);
+}
+
+function endAgentPlanet(todos, target) {
+  if (!todos.some((t) => isAgentPlanet(t, target) && t.status !== 'completed')) return todos;
+  return todos.map((t) => (isAgentPlanet(t, target) ? { ...t, status: 'completed' } : t));
 }
 
 export function applySnapshot(state, payload) {

@@ -42,13 +42,17 @@ function parseTestResult(resultText) {
 const SUBAGENT_TOOLS = new Set(['Agent', 'Task']);
 
 // A background subagent reports completion by injecting a user turn such as
-// `<task-notification><tool-use-id>toolu_…</tool-use-id><status>completed</status>…`.
+// `<task-notification><task-id>a…</task-id><tool-use-id>toolu_…</tool-use-id><status>completed</status>…`.
+// Some notifications carry only the task-id (the subagent's agentId), so the
+// planet is then found by the agentId its launch linked to it.
 function parseTaskNotification(prompt) {
   if (typeof prompt !== 'string' || !prompt.startsWith('<task-notification>')) return null;
-  const id = prompt.match(/<tool-use-id>([^<]+)<\/tool-use-id>/)?.[1];
-  if (!id) return null;
   const status = prompt.match(/<status>([^<]+)<\/status>/)?.[1] ?? 'completed';
-  return { id, status };
+  const id = prompt.match(/<tool-use-id>([^<]+)<\/tool-use-id>/)?.[1];
+  if (id) return { id, status };
+  const agentId = prompt.match(/<task-id>([^<]+)<\/task-id>/)?.[1];
+  if (agentId) return { agentId, status };
+  return null;
 }
 
 export function mapHookEvent(raw) {
@@ -91,8 +95,12 @@ export function mapHookEvent(raw) {
       const toolName = raw.tool_name;
       const toolInput = raw.tool_input ?? {};
       if (SUBAGENT_TOOLS.has(toolName) && raw.tool_use_id) {
-        // A background launch returns at once; its completion arrives later as a task-notification.
-        if (raw.tool_response?.status === 'async_launched') return null;
+        // A background launch returns at once; its completion arrives later as a
+        // task-notification or SubagentStop, which may name only the agentId.
+        if (raw.tool_response?.status === 'async_launched') {
+          const agentId = raw.tool_response.agentId;
+          return agentId ? { type: 'agent_start', ts, payload: { id: raw.tool_use_id, agentId } } : null;
+        }
         return { type: 'agent_end', ts, payload: { id: raw.tool_use_id, status: 'completed' } };
       }
       if (toolName === 'Bash' && classifyBash(toolInput.command) === 'run_tests') {
@@ -110,6 +118,11 @@ export function mapHookEvent(raw) {
 
     case 'Stop':
       return { type: 'mission_complete', ts, payload: {} };
+
+    // Fires whenever any subagent stops, including one a subagent launched,
+    // whose task-notification goes to that subagent rather than to a prompt hook.
+    case 'SubagentStop':
+      return raw.agent_id ? { type: 'agent_end', ts, payload: { agentId: raw.agent_id, status: 'completed' } } : null;
 
     default:
       return null;
