@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { createTranscriptTail } from '../src/transcriptTail.js';
 
 const tails = [];
@@ -147,4 +148,16 @@ test('close() stops polling', async () => {
   fs.appendFileSync(file, line('two'));
   await new Promise((r) => setTimeout(r, 100));
   assert.equal(got.length, 1);
+});
+
+test('an append made while the fs thread pool is busy is still picked up', async () => {
+  const file = tmpFile();
+  fs.writeFileSync(file, line('one'));
+  // Occupy libuv's thread pool so any asynchronous baseline stat lands after the append.
+  for (let i = 0; i < 8; i++) crypto.pbkdf2(String(i), 's', 200_000, 64, 'sha512', () => {});
+  const { tail, got } = startTail();
+  tail.follow(file);
+  fs.appendFileSync(file, line('two'));
+  await waitFor(() => got.length === 2, 3000);
+  assert.equal(got[1].text, 'two');
 });

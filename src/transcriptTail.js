@@ -7,8 +7,11 @@ const NEWLINE = 0x0a;
 // Follows one transcript file at a time and emits the entries for each newly
 // appended complete line. Bytes are buffered until a newline so neither a
 // half-written JSON line nor a multi-byte character split across two reads is
-// ever decoded early. fs.watchFile polls, which is more reliable than fs.watch
-// for appended files on macOS. Nothing here may throw into the server.
+// ever decoded early. It polls with its own timer and compares the file size
+// against its own offset: fs.watch is unreliable for appended files on macOS,
+// and fs.watchFile takes its baseline stat on the libuv thread pool, so an
+// append landing before that stat would go unnoticed until the next write.
+// Nothing here may throw into the server.
 export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBytes = 2 * 1024 * 1024 }) {
   let current = null;
   let generation = 0;
@@ -73,7 +76,7 @@ export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBy
   }
 
   function stopWatching() {
-    if (current) fs.unwatchFile(current.path, current.listener);
+    if (current) clearInterval(current.timer);
   }
 
   function follow(filePath) {
@@ -83,16 +86,15 @@ export function createTranscriptTail({ onEntries, intervalMs = 500, maxInitialBy
       onEntries([{ id: `separator:${generation}`, kind: 'separator', text: 'new session' }]);
     }
     generation += 1;
-    const listener = () => readNew();
     current = {
       path: filePath,
       offset: null,
       partial: Buffer.alloc(0),
       skipFirstLine: false,
       ctx: createMapperContext({ idPrefix: `g${generation}/` }),
-      listener,
+      timer: setInterval(readNew, intervalMs),
     };
-    fs.watchFile(filePath, { interval: intervalMs, persistent: false }, listener);
+    current.timer.unref();
     readNew();
   }
 
