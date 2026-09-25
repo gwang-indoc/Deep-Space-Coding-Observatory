@@ -92,12 +92,12 @@ background subagent spends working does.
 | 0 min | 🪨 Mercury |
 | 2 min | 🟡 Venus |
 | 4 min | 🌍 Earth |
-| 6 min | 🌙 The Moon |
-| 9 min | 🔴 Mars |
-| 12 min | 🟠 Jupiter |
-| 16 min | 🪐 Saturn |
-| 20 min | 🩵 Uranus |
-| 25 min | 🔵 Neptune |
+| 4 min | 🌙 The Moon |
+| 6 min | 🔴 Mars |
+| 9 min | 🟠 Jupiter |
+| 12 min | 🪐 Saturn |
+| 16 min | 🩵 Uranus |
+| 20 min | 🔵 Neptune |
 
 ### 🌌 Deep-space wonders: rare sights for long sessions
 

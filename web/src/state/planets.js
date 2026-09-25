@@ -6,12 +6,12 @@ export const PLANET_UNLOCKS = [
   { kind: 'mercury', minutes: 0 },
   { kind: 'venus', minutes: 2 },
   { kind: 'earth', minutes: 4 },
-  { kind: 'moon', minutes: 6 },
-  { kind: 'mars', minutes: 9 },
-  { kind: 'jupiter', minutes: 12 },
-  { kind: 'saturn', minutes: 16 },
-  { kind: 'uranus', minutes: 20 },
-  { kind: 'neptune', minutes: 25 },
+  { kind: 'moon', minutes: 4 },
+  { kind: 'mars', minutes: 6 },
+  { kind: 'jupiter', minutes: 9 },
+  { kind: 'saturn', minutes: 12 },
+  { kind: 'uranus', minutes: 16 },
+  { kind: 'neptune', minutes: 20 },
 ];
 
 const MINUTE_MS = 60 * 1000;

@@ -18,6 +18,11 @@ describe('planet unlocks', () => {
     ]);
   });
 
+  it('brings the Moon in together with Earth', () => {
+    const at = (kind) => PLANET_UNLOCKS.find((p) => p.kind === kind).minutes;
+    expect(at('moon')).toBe(at('earth'));
+  });
+
   it('shows the first planet from the very start', () => {
     expect(unlockedPlanetCount(0)).toBe(1);
   });
