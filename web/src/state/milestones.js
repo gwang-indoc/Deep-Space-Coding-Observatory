@@ -8,6 +8,9 @@ export const MILESTONES = [
   { id: 'pulsar', minutes: 60, label: '脉冲星' },
   { id: 'blackhole', minutes: 90, label: '黑洞' },
   { id: 'remnant', minutes: 120, label: '超新星遗迹' },
+  { id: 'milkyway', minutes: 150, label: '银河' },
+  { id: 'planetary', minutes: 180, label: '行星状星云' },
+  { id: 'collision', minutes: 240, label: '星系碰撞' },
 ];
 
 const MINUTE_MS = 60 * 1000;

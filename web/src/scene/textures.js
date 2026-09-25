@@ -373,3 +373,51 @@ export function remnantTexture() {
     return toTexture(canvas, { wrap: false });
   });
 }
+
+// Planetary nebula, like the Ring Nebula: a slightly oval shell of gas cast off
+// by a dying star, blue-green where oxygen glows on the inside, red hydrogen on
+// the outer edge, around a faint blue hollow.
+export function planetaryNebulaTexture() {
+  return cached('planetary', () => {
+    const size = 512;
+    const canvas = makeCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    const rand = seededRandom(521);
+    const c = size / 2;
+    ctx.globalCompositeOperation = 'lighter';
+    const hollow = ctx.createRadialGradient(c, c, 0, c, c, size * 0.24);
+    hollow.addColorStop(0, 'rgba(90,140,230,0.22)');
+    hollow.addColorStop(1, 'rgba(60,110,200,0)');
+    ctx.fillStyle = hollow;
+    ctx.fillRect(0, 0, size, size);
+    // Inner to outer: oxygen teal, a greenish-gold blend, hydrogen red.
+    const layers = [
+      { at: 0.2, spread: 30, colors: ['#5cc8c0', '#72d0b4'], count: 3200, alpha: 0.045 },
+      { at: 0.26, spread: 26, colors: ['#b0c880', '#c8b878'], count: 2000, alpha: 0.03 },
+      { at: 0.32, spread: 34, colors: ['#c86058', '#b85868'], count: 2800, alpha: 0.035 },
+    ];
+    layers.forEach(({ at, spread, colors, count, alpha }) => {
+      for (let i = 0; i < count; i += 1) {
+        const angle = rand() * Math.PI * 2;
+        const dist = size * at + Math.sin(angle * 7 + at * 20) * 6 + (rand() - 0.5) * spread;
+        const x = c + Math.cos(angle) * dist;
+        const y = c + Math.sin(angle) * dist * 0.82;
+        const r = 6 + rand() * 14;
+        const color = new THREE.Color(colors[Math.floor(rand() * colors.length)]);
+        const rgb = `${Math.round(color.r * 255)},${Math.round(color.g * 255)},${Math.round(color.b * 255)}`;
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
+        gradient.addColorStop(0, `rgba(${rgb},${alpha})`);
+        gradient.addColorStop(1, `rgba(${rgb},0)`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+    });
+    // A faint outer halo of older, cooler gas.
+    const halo = ctx.createRadialGradient(c, c, size * 0.34, c, c, size * 0.48);
+    halo.addColorStop(0, 'rgba(180,60,70,0.08)');
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, size, size);
+    return toTexture(canvas, { wrap: false });
+  });
+}

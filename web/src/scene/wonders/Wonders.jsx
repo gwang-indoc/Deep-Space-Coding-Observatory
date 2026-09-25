@@ -6,6 +6,9 @@ import Galaxy from './Galaxy.jsx';
 import Pulsar from './Pulsar.jsx';
 import BlackHole from './BlackHole.jsx';
 import SupernovaRemnant from './SupernovaRemnant.jsx';
+import MilkyWay from './MilkyWay.jsx';
+import PlanetaryNebula from './PlanetaryNebula.jsx';
+import CollidingGalaxies from './CollidingGalaxies.jsx';
 
 // Distant bodies are spread around the full circle so the slowly rotating
 // camera brings them into view one at a time instead of crowding one spot.
@@ -24,7 +27,13 @@ const PLACEMENT = {
   pulsar: { Component: Pulsar, position: around(45, 55) },
   blackhole: { Component: BlackHole, position: around(165, 42) },
   remnant: { Component: SupernovaRemnant, position: around(-140, 65) },
+  // Spans the whole sky, so it fades itself in instead of growing from a point.
+  milkyway: { Component: MilkyWay, appear: false },
+  planetary: { Component: PlanetaryNebula, position: around(135, 45) },
+  collision: { Component: CollidingGalaxies, position: around(-90, 75) },
 };
+
+export const WONDER_IDS = Object.keys(PLACEMENT);
 
 export default function Wonders({ unlocked }) {
   return (

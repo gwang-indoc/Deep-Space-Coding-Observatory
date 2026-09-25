@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 
 // Points material with per-vertex color, size and alpha, soft round sprites,
-// additive blending and optional twinkle. Shared by the starfield and comet tails.
+// additive blending, optional twinkle and an overall opacity for fading in. Shared by the starfield and comet tails.
 export function createGlowPointsMaterial({ twinkle = 0 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
       uTwinkle: { value: twinkle },
       uScale: { value: 300 },
+      uOpacity: { value: 1 },
     },
     vertexShader: /* glsl */ `
       attribute float size;
@@ -16,12 +17,13 @@ export function createGlowPointsMaterial({ twinkle = 0 } = {}) {
       uniform float uTime;
       uniform float uTwinkle;
       uniform float uScale;
+      uniform float uOpacity;
       varying vec3 vColor;
       varying float vAlpha;
       void main() {
         vColor = color;
         float flicker = 1.0 - uTwinkle * 0.5 * (1.0 + sin(uTime * (1.5 + phase * 3.0) + phase * 40.0));
-        vAlpha = alpha * flicker;
+        vAlpha = alpha * flicker * uOpacity;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         gl_PointSize = size * uScale / -mvPosition.z;
         gl_Position = projectionMatrix * mvPosition;

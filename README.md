@@ -23,7 +23,7 @@ The longer it works, the more of the universe opens up: from Mercury to a black 
 
 ---
 
-![Orbit two hours into a session: the whole solar system lit from Mercury to Neptune, a black hole and a supernova remnant beyond the asteroid belt, a comet streaking in, and the green/red test ring](docs/images/orbit-dashboard.png)
+![Orbit four hours into a session: the Milky Way arching across the sky behind the asteroid belt, a pulsar sweeping its beams, a comet streaking in, the whole solar system lit, satellites around the files Claude read, and the green/red test ring](docs/images/orbit-dashboard.png)
 
 Orbit wraps the `claude` CLI and turns the session into a real-time 3D
 deep-space dashboard in your browser. You can tell at a glance what Claude is
@@ -31,7 +31,7 @@ doing, whether it's still working or needs you, and how long it has been going.
 
 - 🔭 **See it think.** Reads, edits, searches, shell commands and test runs each get their own visual.
 - 🚨 **Know when it needs you.** The sun turns red, warning rings pulse and the tab title blinks.
-- 🌌 **Rewards that grow.** Working time unlocks planets, then deep-space wonders, up to a supernova remnant at two hours.
+- 🌌 **Rewards that grow.** Working time unlocks planets, then deep-space wonders, up to colliding galaxies at four hours.
 - 🔒 **Leaves no trace.** Hooks are injected per session through `--settings`. Your Claude Code config is never touched, and everything stays on `127.0.0.1`.
 
 ---
@@ -116,6 +116,9 @@ time.
 | 60 min | 💫 **Pulsar** · 脉冲星 | A spinning neutron star sweeping lighthouse beams across the sky |
 | 90 min | 🕳️ **Black hole** · 黑洞 | Accretion disk from white-hot to deep red, inner streaks moving faster |
 | 120 min | 💥 **Supernova remnant** · 超新星遗迹 | An expanding filament shell around a flickering neutron star |
+| 150 min | 🌌 **Milky Way** · 银河 | A faint band of stars arching across the whole sky, warmer and wider toward the galactic centre, split by a dark dust lane. It fades in over the sky rather than appearing in one spot |
+| 180 min | 🟢 **Planetary nebula** · 行星状星云 | A softly breathing ring of teal and red gas around a white dwarf, like the Ring Nebula |
+| 240 min | 🌠 **Colliding galaxies** · 星系碰撞 | Two spirals mid-merger, flinging long tidal tails to either side with a bridge of pink star-forming knots between them |
 
 The **Uptime HUD** (bottom-right) shows total working time. The **Status HUD**
 (top-right) shows the model, context usage and rate limits. The **Step list**
