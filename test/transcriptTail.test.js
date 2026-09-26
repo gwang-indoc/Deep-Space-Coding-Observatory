@@ -197,3 +197,20 @@ test('switching files first reads what was appended to the old one', () => {
   tail.follow(b);
   assert.deepEqual(got.map((e) => e.text), ['one', 'last words', 'new session', 'other']);
 });
+
+function interruptLine(text, timestamp, uuid = timestamp) {
+  return JSON.stringify({ type: 'user', uuid, timestamp, message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n';
+}
+
+test('reports each user interrupt with its timestamp', async () => {
+  const file = tmpFile();
+  fs.writeFileSync(file, line('working') + interruptLine('[Request interrupted by user]', '2026-09-25T10:00:00.000Z'));
+  const interrupts = [];
+  const { tail } = startTail({ onInterrupt: (ts) => interrupts.push(ts) });
+  tail.follow(file);
+  assert.deepEqual(interrupts, [Date.parse('2026-09-25T10:00:00.000Z')]);
+
+  fs.appendFileSync(file, interruptLine('[Request interrupted by user for tool use]', '2026-09-25T10:05:00.000Z'));
+  await waitFor(() => interrupts.length === 2);
+  assert.equal(interrupts[1], Date.parse('2026-09-25T10:05:00.000Z'));
+});

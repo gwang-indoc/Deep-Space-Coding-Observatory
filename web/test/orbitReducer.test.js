@@ -18,6 +18,7 @@ describe('createInitialOrbitState', () => {
     const state = createInitialOrbitState();
     expect(state).toEqual({
       missionActive: false,
+      missionSessions: [],
       todos: [],
       satellites: [],
       ships: [],
@@ -112,6 +113,35 @@ describe('applyOrbitEvent: subagent planets (agent_start / agent_end)', () => {
     state = applyOrbitEvent(state, { type: 'agent_end', ts: 3, payload: { id: 'a', status: 'completed' } });
     state = applyOrbitEvent(state, { type: 'mission_start', ts: 4, payload: {} });
     expect(state.todos).toEqual([{ id: 'b', text: 'B', status: 'in_progress' }]);
+  });
+});
+
+describe('applyOrbitEvent: several sessions sharing the dashboard', () => {
+  it('stays active until every session has completed', () => {
+    let state = createInitialOrbitState();
+    state = applyOrbitEvent(state, { type: 'mission_start', ts: 1, payload: {}, sessionId: 'A' });
+    state = applyOrbitEvent(state, { type: 'mission_start', ts: 2, payload: {}, sessionId: 'B' });
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 3, payload: {}, sessionId: 'B' });
+    expect(state.missionActive).toBe(true);
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 4, payload: {}, sessionId: 'A' });
+    expect(state.missionActive).toBe(false);
+    expect(selectOrbitMode(state, 4 + 60_000)).toBe('idle');
+  });
+
+  it('session_end stops that session and finishes only its planets', () => {
+    let state = createInitialOrbitState();
+    state = applyOrbitEvent(state, { type: 'mission_start', ts: 1, payload: {}, sessionId: 'A' });
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 2, payload: { id: 'a', text: 'A' }, sessionId: 'A' });
+    state = applyOrbitEvent(state, { type: 'agent_start', ts: 3, payload: { id: 'b', text: 'B' }, sessionId: 'B' });
+    state = applyOrbitEvent(state, { type: 'session_end', ts: 4, payload: {}, sessionId: 'A' });
+    expect(state.missionActive).toBe(false);
+    expect(state.todos.map((t) => [t.id, t.status])).toEqual([['a', 'completed'], ['b', 'in_progress']]);
+  });
+
+  it('a snapshot restores which sessions are running', () => {
+    let state = applySnapshot(createInitialOrbitState(), { todos: [], missionActive: true, missionSessions: ['A', 'B'] });
+    state = applyOrbitEvent(state, { type: 'mission_complete', ts: 1, payload: {}, sessionId: 'A' });
+    expect(state.missionActive).toBe(true);
   });
 });
 

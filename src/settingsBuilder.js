@@ -22,9 +22,12 @@ export function buildInlineSettings({ notifyPath, statuslinePath, port }) {
       UserPromptSubmit: [unmatched],
       PreToolUse: [matched],
       PostToolUse: [matched],
+      PostToolUseFailure: [matched],
       Notification: [unmatched],
       Stop: [unmatched],
       SubagentStop: [unmatched],
+      StopFailure: [unmatched],
+      SessionEnd: [unmatched],
     },
     statusLine: commandHook(statuslinePath, port),
   });

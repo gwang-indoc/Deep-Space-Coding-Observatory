@@ -146,13 +146,20 @@ Orbit 会找一个空闲端口（默认 `4321`），启动本地服务器，打�
 
 | Claude Code hook | Orbit 事件 |
 |---|---|
-| `UserPromptSubmit` | `mission_start` |
+| `UserPromptSubmit` | `mission_start`（后台 subagent 的完成通知：`agent_end`） |
 | `PreToolUse` `Read` · `Edit`/`Write` · `Grep`/`Glob` · `Bash` | `file_read` · `file_edit` · `search` · `run_command` / `run_tests` |
-| `PreToolUse` / `PostToolUse` `Agent`/`Task` | `agent_start` / `agent_end` |
+| `PreToolUse` / `PostToolUse` `Agent`/`Task` | `agent_start` / `agent_end`（后台启动时关联它的 agentId） |
+| `PostToolUseFailure` `Agent`/`Task` · `SubagentStop` · `PostToolUse` `TaskStop` | `agent_end` |
 | `PostToolUse` 测试命令 | `test_result` |
 | `Notification`（空闲提醒除外） | `waiting` |
-| `Stop` | `mission_complete` |
+| `Stop` · `StopFailure` | `mission_complete` |
+| `SessionEnd` | `session_end`（结束该会话的回合及其 subagent） |
 | `statusLine` | `status_update`（模型、上下文 %、速率限制） |
+
+每个事件都带着 `session_id`，所以共用一个仪表盘的多个会话（fork 或后台会话会继承 hook）
+各自记录自己的回合。只有所有会话都没有进行中的回合、也没有剩下的 subagent 时，太阳才会熄灭。
+用户中断（Esc）不会触发任何 hook；服务器在跟读的会话记录里看到
+`[Request interrupted by user]` 这一行时，结束该回合。
 
 新打开的浏览器标签页会先收到一份快照，所以刷新后状态不会丢。
 hook 配置只在一个 `orbit` 进程的生命周期内存在。

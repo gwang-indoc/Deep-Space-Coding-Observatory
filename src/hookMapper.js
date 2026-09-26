@@ -103,11 +103,24 @@ export function mapHookEvent(raw) {
         }
         return { type: 'agent_end', ts, payload: { id: raw.tool_use_id, status: 'completed' } };
       }
+      // A subagent stopped by hand may send no notification; TaskStop names it.
+      // Stopping a shell task instead matches no planet, so it changes nothing.
+      if (toolName === 'TaskStop') {
+        const agentId = toolInput.task_id ?? toolInput.shell_id;
+        return agentId ? { type: 'agent_end', ts, payload: { agentId, status: 'stopped' } } : null;
+      }
       if (toolName === 'Bash' && classifyBash(toolInput.command) === 'run_tests') {
         return { type: 'test_result', ts, payload: parseTestResult(extractBashResultText(raw)) };
       }
       return null;
     }
+
+    // A foreground subagent that is interrupted or errors never gets a PostToolUse.
+    case 'PostToolUseFailure':
+      if (SUBAGENT_TOOLS.has(raw.tool_name) && raw.tool_use_id) {
+        return { type: 'agent_end', ts, payload: { id: raw.tool_use_id, status: raw.is_interrupt ? 'interrupted' : 'failed' } };
+      }
+      return null;
 
     case 'Notification':
       // The idle reminder fires about a minute after a turn ends, even while a
@@ -116,8 +129,14 @@ export function mapHookEvent(raw) {
       if (raw.notification_type === 'idle_prompt') return null;
       return { type: 'waiting', ts, payload: { message: raw.message ?? '' } };
 
+    // A turn that ends on an API error fires StopFailure instead of Stop. (A user
+    // interrupt fires neither; the server spots it in the transcript.)
     case 'Stop':
+    case 'StopFailure':
       return { type: 'mission_complete', ts, payload: {} };
+
+    case 'SessionEnd':
+      return { type: 'session_end', ts, payload: { reason: raw.reason ?? '' } };
 
     // Fires whenever any subagent stops, including one a subagent launched,
     // whose task-notification goes to that subagent rather than to a prompt hook.

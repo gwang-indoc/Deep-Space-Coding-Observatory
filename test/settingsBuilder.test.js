@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInlineSettings } from '../src/settingsBuilder.js';
 
-test('builds hooks for all six events plus a statusLine command', () => {
+test('builds hooks for every observed event plus a statusLine command', () => {
   const json = buildInlineSettings({ notifyPath: '/bin/orbit-notify', statuslinePath: '/bin/orbit-statusline', port: 4321 });
   const settings = JSON.parse(json);
 
-  for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStop']) {
+  for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStop', 'StopFailure', 'PostToolUseFailure', 'SessionEnd']) {
     assert.ok(settings.hooks[event], `missing hook config for ${event}`);
     const [entry] = settings.hooks[event];
     assert.equal(entry.hooks[0].type, 'command');
@@ -15,6 +15,7 @@ test('builds hooks for all six events plus a statusLine command', () => {
 
   assert.equal(settings.hooks.PreToolUse[0].matcher, '*');
   assert.equal(settings.hooks.PostToolUse[0].matcher, '*');
+  assert.equal(settings.hooks.PostToolUseFailure[0].matcher, '*');
   assert.equal(settings.hooks.UserPromptSubmit[0].matcher, undefined);
 
   assert.deepEqual(settings.statusLine, { type: 'command', command: "ORBIT_PORT=4321 '/bin/orbit-statusline'" });

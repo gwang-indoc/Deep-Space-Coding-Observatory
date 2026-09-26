@@ -97,3 +97,14 @@ test('omits transcriptPath for a subagent hook', async () => {
   assert.equal(received[0].type, 'file_read');
   assert.equal('transcriptPath' in received[0], false);
 });
+
+test('attaches the hook session_id as sessionId, for subagent hooks too', async () => {
+  const received = await captureOnePost({
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Read',
+    tool_input: { file_path: 'a.js' },
+    agent_id: 'agent-1',
+    session_id: 'sess-1',
+  });
+  assert.equal(received[0].sessionId, 'sess-1');
+});

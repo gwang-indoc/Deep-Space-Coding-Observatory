@@ -12,6 +12,8 @@ function pruneExpired(list, ttlMs, nowMs) {
 export function createInitialOrbitState() {
   return {
     missionActive: false,
+    // Sessions sharing the dashboard with a turn running; mirrors the server.
+    missionSessions: [],
     todos: [],
     satellites: [],
     ships: [],
@@ -57,16 +59,35 @@ function upsertSatellite(satellites, file, ts) {
   return next;
 }
 
+// Events from before hooks carried a session id share one key.
+function sessionKey(event) {
+  return typeof event.sessionId === 'string' ? event.sessionId : '';
+}
+
+function withMission(state, key, running) {
+  const has = state.missionSessions.includes(key);
+  if (has === running) return state;
+  const missionSessions = running ? [...state.missionSessions, key] : state.missionSessions.filter((k) => k !== key);
+  return { ...state, missionSessions, missionActive: missionSessions.length > 0 };
+}
+
 // Mirrors the server's subagent planet rules. Both return the same array when
 // nothing changes.
-function startAgentPlanet(todos, { id, text, agentId }) {
+function startAgentPlanet(todos, { id, text, agentId }, sessionId) {
   const existing = todos.find((t) => t.id === id);
   if (existing) {
     if (!agentId || existing.agentId === agentId) return todos;
     return todos.map((t) => (t.id === id ? { ...t, agentId } : t));
   }
   const planet = { id, text: text ?? '', status: 'in_progress' };
-  return [...todos, agentId ? { ...planet, agentId } : planet];
+  if (agentId) planet.agentId = agentId;
+  if (sessionId) planet.sessionId = sessionId;
+  return [...todos, planet];
+}
+
+function endSessionPlanets(todos, sessionId) {
+  if (!sessionId || !todos.some((t) => t.sessionId === sessionId && t.status !== 'completed')) return todos;
+  return todos.map((t) => (t.sessionId === sessionId ? { ...t, status: 'completed' } : t));
 }
 
 function isAgentPlanet(planet, { id, agentId }) {
@@ -79,10 +100,17 @@ function endAgentPlanet(todos, target) {
 }
 
 export function applySnapshot(state, payload) {
+  // Older servers send only the boolean; it stands for one unnamed session.
+  const missionSessions = Array.isArray(payload?.missionSessions)
+    ? payload.missionSessions
+    : payload?.missionActive
+      ? ['']
+      : [];
   const next = {
     ...state,
     todos: payload?.todos ?? [],
-    missionActive: Boolean(payload?.missionActive),
+    missionSessions,
+    missionActive: missionSessions.length > 0,
   };
   // Older servers omit `waiting`; only a present value overrides local state.
   if (payload?.waiting) {
@@ -114,31 +142,35 @@ function reduceOrbitEvent(state, event) {
 
     case 'mission_start':
       return {
-        ...baseState,
+        ...withMission(baseState, sessionKey(event), true),
         todos: baseState.todos.filter((t) => t.status !== 'completed'),
-        missionActive: true,
         waitingSince,
         waitingMessage,
         lastCompletedAt: null,
       };
 
     case 'mission_complete':
-      return { ...baseState, missionActive: false, waitingSince, waitingMessage, lastCompletedAt: event.ts };
+      return { ...withMission(baseState, sessionKey(event), false), waitingSince, waitingMessage, lastCompletedAt: event.ts };
+
+    case 'session_end':
+      return {
+        ...withMission(baseState, sessionKey(event), false),
+        todos: endSessionPlanets(baseState.todos, sessionKey(event)),
+        waitingSince,
+        waitingMessage,
+      };
 
     case 'planet_sync':
       return { ...baseState, todos: event.payload.todos, waitingSince, waitingMessage };
 
     case 'agent_start':
-      return { ...baseState, todos: startAgentPlanet(baseState.todos, event.payload), waitingSince, waitingMessage };
+      return { ...baseState, todos: startAgentPlanet(baseState.todos, event.payload, sessionKey(event)), waitingSince, waitingMessage };
 
-    case 'agent_end':
-      return {
-        ...baseState,
-        todos: endAgentPlanet(baseState.todos, event.payload),
-        missionActive: baseState.missionActive || Boolean(event.payload.resumesMission),
-        waitingSince,
-        waitingMessage,
-      };
+    case 'agent_end': {
+      // A background subagent finishing hands its session a new turn.
+      const resumed = event.payload.resumesMission ? withMission(baseState, sessionKey(event), true) : baseState;
+      return { ...resumed, todos: endAgentPlanet(baseState.todos, event.payload), waitingSince, waitingMessage };
+    }
 
     case 'file_read':
     case 'file_edit':

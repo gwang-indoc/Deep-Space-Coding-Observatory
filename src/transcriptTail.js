@@ -1,6 +1,6 @@
 // src/transcriptTail.js
 import fs from 'node:fs';
-import { createMapperContext, mapTranscriptLine } from './transcriptMapper.js';
+import { createMapperContext, interruptTime, mapTranscriptLine } from './transcriptMapper.js';
 
 const NEWLINE = 0x0a;
 const EMPTY = Buffer.alloc(0);
@@ -26,9 +26,11 @@ function startsLine(filePath, offset) {
 // against its own offset: fs.watch is unreliable for appended files on macOS,
 // and fs.watchFile takes its baseline stat on the libuv thread pool, so an
 // append landing before that stat would go unnoticed until the next write.
-// Nothing here may throw into the server.
+// Nothing here may throw into the server. onInterrupt gets the time of each
+// user interrupt line, which no hook reports.
 export function createTranscriptTail({
   onEntries,
+  onInterrupt = () => {},
   intervalMs = 500,
   maxInitialBytes = 2 * 1024 * 1024,
   maxPartialBytes = 8 * 1024 * 1024,
@@ -86,6 +88,7 @@ export function createTranscriptTail({
     }
 
     const entries = [];
+    const interrupts = [];
     for (const text of lines) {
       if (!text.trim()) continue;
       let obj;
@@ -95,8 +98,11 @@ export function createTranscriptTail({
         continue;
       }
       entries.push(...mapTranscriptLine(obj, file.ctx));
+      const interruptedAt = interruptTime(obj);
+      if (interruptedAt != null) interrupts.push(interruptedAt);
     }
     if (entries.length > 0) onEntries(entries);
+    for (const ts of interrupts) onInterrupt(ts);
   }
 
   function stopWatching() {

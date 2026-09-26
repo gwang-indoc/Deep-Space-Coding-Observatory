@@ -158,6 +158,48 @@ test('UserPromptSubmit carrying a background task-notification maps to agent_end
   });
 });
 
+test('a foreground subagent that is interrupted or fails ends its planet', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUseFailure',
+    tool_name: 'Agent',
+    tool_use_id: 'toolu_1',
+    error: 'Interrupted by user',
+    is_interrupt: true,
+  });
+  assert.deepEqual(event, { type: 'agent_end', ts: event.ts, payload: { id: 'toolu_1', status: 'interrupted' } });
+});
+
+test('PostToolUseFailure for any other tool returns null', () => {
+  const event = mapHookEvent({ hook_event_name: 'PostToolUseFailure', tool_name: 'Bash', tool_use_id: 'toolu_2', error: 'x' });
+  assert.equal(event, null);
+});
+
+test('StopFailure (the turn ended on an API error) maps to mission_complete', () => {
+  const event = mapHookEvent({ hook_event_name: 'StopFailure', error: 'rate_limit' });
+  assert.deepEqual(event, { type: 'mission_complete', ts: event.ts, payload: {} });
+});
+
+test('SessionEnd maps to session_end', () => {
+  const event = mapHookEvent({ hook_event_name: 'SessionEnd', reason: 'prompt_input_exit' });
+  assert.deepEqual(event, { type: 'session_end', ts: event.ts, payload: { reason: 'prompt_input_exit' } });
+});
+
+test('stopping a background subagent with TaskStop ends its planet by agentId', () => {
+  const event = mapHookEvent({
+    hook_event_name: 'PostToolUse',
+    tool_name: 'TaskStop',
+    tool_use_id: 'toolu_9',
+    tool_input: { task_id: 'a1' },
+    tool_response: { message: 'Successfully stopped task: a1' },
+  });
+  assert.deepEqual(event, { type: 'agent_end', ts: event.ts, payload: { agentId: 'a1', status: 'stopped' } });
+});
+
+test('TaskStop with the deprecated shell_id still ends the planet', () => {
+  const event = mapHookEvent({ hook_event_name: 'PostToolUse', tool_name: 'TaskStop', tool_input: { shell_id: 'a2' } });
+  assert.deepEqual(event, { type: 'agent_end', ts: event.ts, payload: { agentId: 'a2', status: 'stopped' } });
+});
+
 test('PreToolUse for an unmapped tool returns null', () => {
   const event = mapHookEvent({ hook_event_name: 'PreToolUse', tool_name: 'WebFetch', tool_input: {} });
   assert.equal(event, null);

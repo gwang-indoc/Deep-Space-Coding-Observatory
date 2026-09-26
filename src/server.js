@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
-import { createInitialState, applyEvent, snapshotEvent } from './state.js';
+import { createInitialState, applyEvent, missionStartedAt, snapshotEvent } from './state.js';
 import { createTranscriptTail } from './transcriptTail.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +54,7 @@ const KNOWN_EVENT_TYPES = new Set([
   'waiting',
   'mission_start',
   'mission_complete',
+  'session_end',
   'status_update',
 ]);
 
@@ -114,8 +115,26 @@ export function createOrbitServer(
   // The terminal panel's backlog: the last TRANSCRIPT_LIMIT entries, replayed in
   // every snapshot and extended by transcript_append broadcasts.
   const transcript = [];
+  // The session whose transcript the tail follows, so an interrupt found there
+  // ends that session's turn and no other.
+  let tailedSessionId;
+
+  function publish(event) {
+    applyEvent(state, event);
+    broadcast(event);
+  }
+
   const transcriptTail = createTranscriptTail({
     intervalMs: transcriptPollMs,
+    // Esc fires no hook, so the interrupt line in the transcript is what ends the turn.
+    onInterrupt(interruptedAt) {
+      const startedAt = missionStartedAt(state, tailedSessionId);
+      // An interrupt older than the running turn is backlog, not this turn's end.
+      if (startedAt != null && interruptedAt >= startedAt) {
+        const event = { type: 'mission_complete', ts: Date.now(), payload: {} };
+        publish(tailedSessionId ? { ...event, sessionId: tailedSessionId } : event);
+      }
+    },
     onEntries(entries) {
       transcript.push(...entries);
       if (transcript.length > TRANSCRIPT_LIMIT) transcript.splice(0, transcript.length - TRANSCRIPT_LIMIT);
@@ -178,9 +197,9 @@ export function createOrbitServer(
           // transcriptPath rides along with hook events but is not part of the
           // event the dashboard sees.
           const { transcriptPath, ...event } = parsed;
-          applyEvent(state, event);
-          broadcast(event);
+          publish(event);
           if (isAcceptedTranscriptPath(transcriptPath, configDir)) {
+            tailedSessionId = event.sessionId;
             transcriptTail.follow(canonicalTranscriptPath(path.resolve(transcriptPath)));
           }
           res.writeHead(204);

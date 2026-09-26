@@ -153,13 +153,21 @@ Move away and it slides back down.
 
 | Claude Code hook | Orbit event |
 |---|---|
-| `UserPromptSubmit` | `mission_start` |
+| `UserPromptSubmit` | `mission_start` (a background subagent's notification: `agent_end`) |
 | `PreToolUse` `Read` · `Edit`/`Write` · `Grep`/`Glob` · `Bash` | `file_read` · `file_edit` · `search` · `run_command` / `run_tests` |
-| `PreToolUse` / `PostToolUse` `Agent`/`Task` | `agent_start` / `agent_end` |
+| `PreToolUse` / `PostToolUse` `Agent`/`Task` | `agent_start` / `agent_end` (a background launch links its agentId) |
+| `PostToolUseFailure` `Agent`/`Task` · `SubagentStop` · `PostToolUse` `TaskStop` | `agent_end` |
 | `PostToolUse` test command | `test_result` |
 | `Notification` (except the idle reminder) | `waiting` |
-| `Stop` | `mission_complete` |
+| `Stop` · `StopFailure` | `mission_complete` |
+| `SessionEnd` | `session_end` (ends that session's turn and subagents) |
 | `statusLine` | `status_update` (model, context %, rate limits) |
+
+Every event carries its `session_id`, so sessions sharing one dashboard (a
+fork or background session inherits the hooks) each keep their own turn. The
+sun goes out only when no session has a turn running and no subagent is left.
+A user interrupt fires no hook; the server ends that turn when the
+`[Request interrupted by user]` line appears in the transcript it tails.
 
 New browser tabs first receive a snapshot, so reloading keeps the current
 state. The hook wiring exists only for the lifetime of one `orbit` process.

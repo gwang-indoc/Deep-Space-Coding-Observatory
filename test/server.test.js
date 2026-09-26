@@ -195,6 +195,36 @@ test('a background subagent linked to its agentId can be ended by that agentId',
   await close();
 });
 
+test('the mission stays active until every session sharing the dashboard has stopped', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'mission_start', ts: 1000, payload: {}, sessionId: 'A' });
+  await postEvent(port, { type: 'mission_start', ts: 1100, payload: {}, sessionId: 'B' });
+  await postEvent(port, { type: 'mission_complete', ts: 1200, payload: {}, sessionId: 'B' });
+  assert.equal((await snapshotOf(port)).payload.missionActive, true);
+
+  await postEvent(port, { type: 'mission_complete', ts: 1300, payload: {}, sessionId: 'A' });
+  assert.equal((await snapshotOf(port)).payload.missionActive, false);
+  await close();
+});
+
+test('session_end stops that session and finishes its planets, leaving other sessions alone', async () => {
+  const { port, close } = await createOrbitServer(0);
+
+  await postEvent(port, { type: 'mission_start', ts: 1000, payload: {}, sessionId: 'A' });
+  await postEvent(port, { type: 'agent_start', ts: 1100, payload: { id: 'a', text: 'A' }, sessionId: 'A' });
+  await postEvent(port, { type: 'agent_start', ts: 1200, payload: { id: 'b', text: 'B' }, sessionId: 'B' });
+  await postEvent(port, { type: 'session_end', ts: 1300, payload: {}, sessionId: 'A' });
+
+  const { payload } = await snapshotOf(port);
+  assert.equal(payload.missionActive, false);
+  assert.deepEqual(
+    payload.todos.map((t) => [t.id, t.status]),
+    [['a', 'completed'], ['b', 'in_progress']]
+  );
+  await close();
+});
+
 test('rejects a POST /event with an unknown type', async () => {
   const { port, close } = await createOrbitServer(0);
   const status = await postEvent(port, { type: 'not_a_real_type', ts: Date.now(), payload: {} });
@@ -349,6 +379,49 @@ test('the transcript buffer keeps only the last 300 entries', async () => {
   assert.equal(transcript.length, 300);
   assert.equal(transcript[0].text, 'm20');
   assert.equal(transcript[299].text, 'm319');
+  await close();
+});
+
+function interruptTranscriptLine(timestamp, uuid) {
+  return JSON.stringify({ type: 'user', uuid, timestamp, message: { role: 'user', content: [{ type: 'text', text: '[Request interrupted by user]' }] } }) + '\n';
+}
+
+test('a user interrupt in the transcript ends the mission, since no Stop hook fires for it', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 's.jsonl');
+  const startedAt = Date.now();
+  fs.writeFileSync(file, interruptTranscriptLine(new Date(startedAt - 60_000).toISOString(), 'old'));
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+
+  await postEvent(port, { type: 'mission_start', ts: startedAt, payload: {}, transcriptPath: file });
+  assert.equal((await snapshotOf(port)).payload.missionActive, true, 'an interrupt from before this prompt is ignored');
+
+  fs.appendFileSync(file, interruptTranscriptLine(new Date(startedAt + 1000).toISOString(), 'new'));
+  const deadline = Date.now() + 2000;
+  let snapshot = await snapshotOf(port);
+  while (snapshot.payload.missionActive && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    snapshot = await snapshotOf(port);
+  }
+  assert.equal(snapshot.payload.missionActive, false);
+  await close();
+});
+
+test('a transcript interrupt ends only the session whose transcript it is', async () => {
+  const configDir = makeConfigDir();
+  const file = path.join(configDir, 'projects', 'p', 'a.jsonl');
+  const startedAt = Date.now();
+  fs.writeFileSync(file, '');
+  const { port, close } = await createOrbitServer(0, { configDir, transcriptPollMs: 20 });
+
+  await postEvent(port, { type: 'mission_start', ts: startedAt, payload: {}, sessionId: 'A', transcriptPath: file });
+  await postEvent(port, { type: 'mission_start', ts: startedAt, payload: {}, sessionId: 'B' });
+  fs.appendFileSync(file, interruptTranscriptLine(new Date(startedAt + 1000).toISOString(), 'i1'));
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  assert.equal((await snapshotOf(port)).payload.missionActive, true, 'session B is still running');
+  await postEvent(port, { type: 'mission_complete', ts: startedAt + 2000, payload: {}, sessionId: 'B' });
+  assert.equal((await snapshotOf(port)).payload.missionActive, false, 'session A was ended by its interrupt');
   await close();
 });
 

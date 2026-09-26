@@ -186,6 +186,17 @@ function mapLine(obj, ctx) {
   return entries;
 }
 
+// Claude Code records an Esc as a user line "[Request interrupted by user]" (or
+// "... for tool use"). Returns its time in ms, or null for any other line.
+export function interruptTime(obj) {
+  if (obj?.type !== 'user') return null;
+  const content = obj.message?.content;
+  const texts = typeof content === 'string' ? [content] : Array.isArray(content) ? content.map((b) => b?.text) : [];
+  if (!texts.some((t) => typeof t === 'string' && t.startsWith('[Request interrupted by user'))) return null;
+  const ts = Date.parse(obj.timestamp);
+  return Number.isNaN(ts) ? null : ts;
+}
+
 export function mapTranscriptLine(obj, ctx) {
   try {
     return mapLine(obj, ctx);
